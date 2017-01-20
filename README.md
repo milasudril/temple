@@ -1,1 +1,1 @@
-JSON with uniform arrays
+AJSON -- Type Annotated JSON

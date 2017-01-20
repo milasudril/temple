@@ -1,0 +1,7 @@
+{
+"foo":
+	{
+	 "bar"i32:[1,2,3]
+	,"string"s:"Hello, World"
+	}
+}
