@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <cassert>
 
 namespace
 	{
@@ -391,17 +392,21 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 				switch(ch_in)
 					{
 					case '{':
-						if(node_current.array)
-							{++node_current.item_count;}
+						if(nodes.size() && nodes.top().array)
+							{
+							node_current.key+="/#";
+							node_current.key+=std::to_string(node_current.item_count);
+							++nodes.top().item_count;
+							}
+						node_current.array=0;
+						node_current.item_count=0;
 						nodes.push(node_current);
 						state_current=State::KEY_BEGIN;
 						break;
 					case '[':
-						error("Array of compounds not supported");
-					/*	nodes.push(node_current);
-						node_current.clear();
+						node_current.array=1;
+						nodes.push(node_current);
 						state_current=State::COMPOUND_BEGIN;
-						node_current.array=1;*/
 						break;
 					default:
 						if(ch_in<0 || ch_in>' ')
@@ -435,6 +440,9 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 						break;
 					case '/':
 						error("'/' cannot be used in keys");
+						return *this;
+					case '#':
+						error("'#' cannot be used in keys");
 						return *this;
 					case '"':
 						node_current.key+='/';
@@ -496,13 +504,25 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 				switch(ch_in)
 					{
 					case ',':
-						state_current=State::KEY_BEGIN;
 						node_current=nodes.top();
+						if(node_current.array)
+							{state_current=State::COMPOUND_BEGIN;}
+						else
+							{state_current=State::KEY_BEGIN;}
 						break;
 					case '}':
 						state_current=State::DELIMITER;
 						node_current=nodes.top();
 						nodes.pop();
+						if(node_current.array)
+							{error("Expected ']' terminator");}
+						break;
+					case ']':
+						state_current=State::DELIMITER;
+						node_current=nodes.top();
+						nodes.pop();
+						if(!node_current.array)
+							{error("Expected '}' terminator");}
 						break;
 					default:
 						if(ch_in<0 || ch_in>' ')
@@ -573,9 +593,9 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 				break;
 
 			case State::ESCAPE:
-				if(state_old==State::KEY && ch_in=='/')
+				if(state_old==State::KEY && (ch_in=='/' || ch_in=='#'))
 					{
-					error("'/' cannot be used in keys");
+					error("'/' or '#' cannot be used in keys");
 					return *this;
 					}
 
@@ -588,7 +608,7 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 				return *this;
 			}
 		}
-
+	assert(nodes.size()==0);
 	return *this;
 	}
 

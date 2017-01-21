@@ -88,7 +88,9 @@ int main()
 	,"another valid string"s:This\ is\ legal\ too
 	,"more objects":{"foo"s:"bar","value"d:3.14}
 	}
-,"bar":{"baz"i64:1243}
+,"bar":{"baz"i64:124380867045036}
+,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:1,"bar"i32:2}]}]
+,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
 })EOF";
 
 	ItemTree<> tree(Reader{src},ErrorHandler{});
