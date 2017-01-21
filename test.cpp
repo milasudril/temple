@@ -3,6 +3,8 @@
 #include "itemtree.hpp"
 #include <cstdio>
 
+using namespace TeMpLe;
+
 struct Reader
 	{
 	const char* r_src;
@@ -27,7 +29,53 @@ struct ErrorHandler
 		}
 
 	void operator()(const char* message,const char* comment)
-		{fprintf(stderr,"Error: %s (%s)",message,comment);}
+		{
+		fprintf(stderr,"Error: %s (%s)",message,comment);
+		abort();
+		}
+	};
+
+template<class T>
+void print(const T& val)
+	{printf("%d",val);}
+
+void print(const std::string& val)
+	{printf("\"%s\"",val.c_str());}
+
+void print(double val)
+	{printf("%.15g",val);}
+
+void print(float val)
+	{printf("%.7g",val);}
+
+void print(int64_t val)
+	{printf("%lld",val);}
+
+struct Proc
+	{
+	template<class T>
+	void operator()(const ItemTree::Key& key,const T& val)
+		{
+		printf("\"%s\":",key.c_str());
+		print(val);
+		putchar('\n');
+		}
+
+	template<class T>
+	void operator()(const ItemTree::Key& key,const std::vector<T>& val)
+		{
+		printf("\"%s\":[",key.c_str());
+		auto ptr=val.data();
+		auto ptr_end=ptr + val.size();
+		while(ptr!=ptr_end)
+			{
+			print(*ptr);
+			++ptr;
+			if(ptr!=ptr_end)
+				{putchar(',');}
+			}
+		puts("]");
+		}
 	};
 
 int main()
@@ -36,11 +84,15 @@ int main()
 "foo":
 	{
 	 "bar"i32:[1,2,3]
-	,"string"s:"Hello, World"
+	,"a string"s:"Hello, World"
+	,"another valid string"s:This\ is\ legal\ too
+	,"more objects":{"foo"s:"bar","value"d:3.14}
 	}
+,"bar":{"baz"i64:1243}
 })EOF";
 
-	AJSONLight::ItemTree tree(Reader{src},ErrorHandler{});
+	ItemTree tree(Reader{src},ErrorHandler{});
+	tree.itemsProcess(Proc{});
 
 	return 0;
 	}

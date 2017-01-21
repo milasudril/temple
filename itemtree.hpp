@@ -97,7 +97,7 @@ namespace
 		};
 	}
 
-namespace AJSONLight
+namespace TeMpLe
 	{
 	class ItemTree
 		{
@@ -115,6 +115,18 @@ namespace AJSONLight
 			template<class Reader,class ErrorHandler>
 			ItemTree& load(Reader& reader,ErrorHandler& error);
 
+			template<class ItemProcessor>
+			void itemsProcess(ItemProcessor&& proc)
+				{
+				data_int8.process(proc);
+				data_int16.process(proc);
+				data_int32.process(proc);
+				data_int64.process(proc);
+				data_float.process(proc);
+				data_double.process(proc);
+				data_string.process(proc);
+				}
+
 		private:
 			template<class T>
 			using value_map=std::map<Key,T>;
@@ -127,6 +139,30 @@ namespace AJSONLight
 				{
 				value_map<T> values;
 				array_map<T> arrays;
+				
+				template<class ItemProcessor>
+				void process(ItemProcessor& proc)
+					{
+						{
+						auto i=values.begin();
+						auto i_end=values.end();
+						while(i!=i_end)
+							{
+							proc(i->first,i->second);
+							++i;
+							}
+						}
+
+						{
+						auto i=arrays.begin();
+						auto i_end=arrays.end();
+						while(i!=i_end)
+							{
+							proc(i->first,i->second);
+							++i;
+							}
+						}
+					}
 				};
 		
 			Data<int8_t> data_int8;
@@ -177,7 +213,7 @@ namespace AJSONLight
 						data_int32.values[key]=Converter<int32_t,ErrorHandler>::convert(value,error);
 						break;
 					case Type::I64:
-						data_int8.values[key]=Converter<int64_t,ErrorHandler>::convert(value,error);
+						data_int64.values[key]=Converter<int64_t,ErrorHandler>::convert(value,error);
 						break;
 					case Type::FLOAT:
 						data_float.values[key]=Converter<float,ErrorHandler>::convert(value,error);
@@ -247,309 +283,305 @@ namespace
 		}
 	}
 
-namespace AJSONLight
+template<class Reader,class ErrorHandler>
+TeMpLe::ItemTree& TeMpLe::ItemTree::load(Reader& reader,ErrorHandler& error)
 	{
-	template<class Reader,class ErrorHandler>
-	ItemTree& ItemTree::load(Reader& reader,ErrorHandler& error)
-		{
 /* Syntax example:
 {
 "foo":
-	{
-	 "bar"i32:[1,2,3]
-	,"string"s:"Hello, World"
-	}
+{
+ "bar"i32:[1,2,3]
+,"string"s:"Hello, World"
+}
 }
 */
-		enum class State:int
+	enum class State:int
+		{
+		 KEY,ESCAPE,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
+		,ARRAY,VALUE,DELIMITER,KEY_BEGIN,VALUE_STRING
+		,ITEM_STRING
+		};
+
+
+	auto state_current=State::COMPOUND_BEGIN;
+	auto state_old=state_current;
+	std::string token_in;
+
+	struct Node
+		{
+		std::string key;
+		Type type;
+		size_t item_count;
+		bool array;
+		};
+		
+	Node node_current{"",Type::COMPOUND,0,0};
+	std::stack<Node> nodes;
+	ArrayPointers array_pointers;
+	auto p_array_append=array_append<int8_t,ErrorHandler>;
+
+	while(1)
+		{
+		auto ch_in=getc(reader);
+		if(ch_in==eof(reader))
+			{return *this;}
+
+		switch(state_current)
 			{
-			 KEY,ESCAPE,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
-			,ARRAY,VALUE,DELIMITER,KEY_BEGIN,VALUE_STRING
-			,ITEM_STRING
-			};
-
-
-		auto state_current=State::COMPOUND_BEGIN;
-		auto state_old=state_current;
-		std::string token_in;
-
-		struct Node
-			{
-			std::string key;
-			Type type;
-			size_t item_count;
-			bool array;
-			};
-			
-		Node node_current{"",Type::COMPOUND,0,0};
-		std::stack<Node> nodes;
-		ArrayPointers array_pointers;
-		auto p_array_append=array_append<int8_t,ErrorHandler>;
-
-		while(1)
-			{
-			auto ch_in=getc(reader);
-			if(ch_in==eof(reader))
-				{return *this;}
-
-			switch(state_current)
-				{
-				case State::ARRAY_CHECK:
-					switch(ch_in)
-						{
-						case '{':
-							error("Unexpected compound");
+			case State::ARRAY_CHECK:
+				switch(ch_in)
+					{
+					case '{':
+						error("Unexpected compound");
+						return *this;
+					case '[':
+						state_current=State::ARRAY;
+						switch(node_current.type)
+							{
+							case Type::I8:
+								array_pointers.r_int8=&data_int8.arrays[node_current.key];
+								p_array_append=array_append<int8_t,ErrorHandler>;
+								break;
+							case Type::I16:
+								array_pointers.r_int16=&data_int16.arrays[node_current.key];
+								p_array_append=array_append<int16_t,ErrorHandler>;
+								break;
+							case Type::I32:
+								array_pointers.r_int32=&data_int32.arrays[node_current.key];
+								p_array_append=array_append<int32_t,ErrorHandler>;
+								break;
+							case Type::I64:
+								array_pointers.r_int64=&data_int64.arrays[node_current.key];
+								p_array_append=array_append<int64_t,ErrorHandler>;
+								break;
+							case Type::FLOAT:
+								array_pointers.r_float=&data_float.arrays[node_current.key];
+								p_array_append=array_append<float,ErrorHandler>;
+								break;
+							case Type::DOUBLE:
+								array_pointers.r_double=&data_double.arrays[node_current.key];
+								p_array_append=array_append<double,ErrorHandler>;
+								break;
+							case Type::STRING:
+								array_pointers.r_string=&data_string.arrays[node_current.key];
+								p_array_append=array_append<std::string,ErrorHandler>;
+								break;
+							case Type::COMPOUND:
+								error("Invalid value type");
+								return *this;
+							}
+						break;
+					case '"':
+						state_current=State::VALUE_STRING;
+						break;
+					default:
+						token_in+=ch_in;
+						state_current=State::VALUE;
+					}
+				break;
+			case State::COMPOUND_BEGIN:
+				switch(ch_in)
+					{
+					case '{':
+						if(node_current.array)
+							{++node_current.item_count;}
+						nodes.push(node_current);
+						state_current=State::KEY_BEGIN;
+						break;
+					case '[':
+						error("Array of compounds not supported");
+					/*	nodes.push(node_current);
+						node_current.clear();
+						state_current=State::COMPOUND_BEGIN;
+						node_current.array=1;*/
+						break;
+					default:
+						if(ch_in<0 || ch_in>' ')
+							{
+							error("Expected array or compound");
 							return *this;
-						case '[':
-							state_current=State::ARRAY;
-							switch(node_current.type)
-								{
-								case Type::I8:
-									array_pointers.r_int8=&data_int8.arrays[node_current.key];
-									p_array_append=array_append<int8_t,ErrorHandler>;
-									break;
-								case Type::I16:
-									array_pointers.r_int16=&data_int16.arrays[node_current.key];
-									p_array_append=array_append<int16_t,ErrorHandler>;
-									break;
-								case Type::I32:
-									array_pointers.r_int32=&data_int32.arrays[node_current.key];
-									p_array_append=array_append<int32_t,ErrorHandler>;
-									break;
-								case Type::I64:
-									array_pointers.r_int64=&data_int64.arrays[node_current.key];
-									p_array_append=array_append<int64_t,ErrorHandler>;
-									break;
-								case Type::FLOAT:
-									array_pointers.r_float=&data_float.arrays[node_current.key];
-									p_array_append=array_append<float,ErrorHandler>;
-									break;
-								case Type::DOUBLE:
-									array_pointers.r_double=&data_double.arrays[node_current.key];
-									p_array_append=array_append<double,ErrorHandler>;
-									break;
-								case Type::STRING:
-									array_pointers.r_string=&data_string.arrays[node_current.key];
-									p_array_append=array_append<std::string,ErrorHandler>;
-									break;
-								case Type::COMPOUND:
-									error("Invalid value type");
-									return *this;
-								}
-							break;
-						case '"':
-							state_current=State::VALUE_STRING;
-							break;
-						default:
-							state_current=State::VALUE;
-						}
-					break;
-				case State::COMPOUND_BEGIN:
-					switch(ch_in)
-						{
-						case '{':
-							if(node_current.array)
-								{++node_current.item_count;}
-							nodes.push(node_current);
-							state_current=State::KEY_BEGIN;
-							break;
-						case '[':
-							error("Array of compounds not supported");
-						/*	nodes.push(node_current);
-							node_current.clear();
-							state_current=State::COMPOUND_BEGIN;
-							node_current.array=1;*/
-							break;
-						default:
-							if(ch_in<0 || ch_in>' ')
-								{
-								error("Expected array or compound");
-								return *this;
-								}
-						}
-					break;
-				case State::KEY_BEGIN:
-					switch(ch_in)
-						{
-						case '"':
-							state_current=State::KEY;
-							break;
-						default:
-							if(ch_in<0 || ch_in>' ')
-								{
-								error("Expected '\"'");
-								return *this;
-								}
-						}
-					break;
-
-				case State::KEY:
-					switch(ch_in)
-						{
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						case '/':
-							error("'/' cannot be used in keys");
+							}
+					}
+				break;
+			case State::KEY_BEGIN:
+				switch(ch_in)
+					{
+					case '"':
+						state_current=State::KEY;
+						break;
+					default:
+						if(ch_in<0 || ch_in>' ')
+							{
+							error("Expected '\"'");
 							return *this;
-						case '"':
-							node_current.key+='/';
-							node_current.key+=token_in;
-							state_current=State::TYPE;
-							token_in.clear();
-							break;
-						default:
-							token_in+=ch_in;
-						}
-					break;
+							}
+					}
+				break;
 
-				case State::TYPE:
-					switch(ch_in)
-						{
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						case ':':
-							node_current.type=type(token_in,error);
-							token_in.clear();
-							if(node_current.type==Type::COMPOUND)
-								{state_current=State::COMPOUND_BEGIN;}
-							else
-								{state_current=State::ARRAY_CHECK;}
-							break;
-						default:
-							token_in+=ch_in;
-						}
-					break;
-
-				case State::ARRAY:
-					switch(ch_in)
-						{
-						case '"':
-							state_current=State::ITEM_STRING;
-							break;
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						case ',':
-							p_array_append(array_pointers,token_in,error);
-							token_in.clear();
-							break;
-						case ']':
-							p_array_append(array_pointers,token_in,error);
-							token_in.clear();
-							state_current=State::DELIMITER;
-							break;
-						default:
-							token_in+=ch_in;
-						}
-					break;
-
-				case State::DELIMITER:
-					switch(ch_in)
-						{
-						case ',':
-							state_current=State::KEY_BEGIN;
-							node_current=nodes.top();
-							break;
-						case '}':
-							state_current=State::DELIMITER;
-							node_current=nodes.top();
-							nodes.pop();
-							break;
-						default:
-							if(ch_in<0 || ch_in>' ')
-								{
-								error("Invalid character");
-								return *this;
-								}
-						}
-					break;
-
-				case State::VALUE:
-					switch(ch_in)
-						{
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						case '"':
-							state_current=State::VALUE_STRING;
-							break;
-						case ',':
-							state_current=State::KEY_BEGIN;
-							valueSet(node_current.type,node_current.key,token_in,error);
-							token_in.clear();
-							node_current=nodes.top();
-							break;
-						case '}':
-							state_current=State::DELIMITER;
-							valueSet(node_current.type,node_current.key,token_in,error);
-							token_in.clear();
-							node_current=nodes.top();
-							nodes.pop();
-							break;
-						default:
-							if(ch_in<0 || ch_in>' ')
-								{
-								error("Invalid character");
-								return *this;
-								}
-						}
-					break;
-
-				case State::VALUE_STRING:
-					switch(ch_in)
-						{
-						case '\"':
-							state_current=State::VALUE;
-							break;
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						default:
-							token_in+=ch_in;
-						}
-					break;
-
-				case State::ITEM_STRING:
-					switch(ch_in)
-						{
-						case '\"':
-							state_current=State::ARRAY;
-							break;
-						case '\\':
-							state_old=state_current;
-							state_current=State::ESCAPE;
-							break;
-						default:
-							token_in+=ch_in;
-						}
-					break;
-
-				case State::ESCAPE:
-					if(state_old==State::KEY && ch_in=='/')
-						{
+			case State::KEY:
+				switch(ch_in)
+					{
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '/':
 						error("'/' cannot be used in keys");
 						return *this;
-						}
+					case '"':
+						node_current.key+='/';
+						node_current.key+=token_in;
+						state_current=State::TYPE;
+						token_in.clear();
+						break;
+					default:
+						token_in+=ch_in;
+					}
+				break;
 
-					token_in+=ch_in;
-					state_current=state_old;
-					break;
+			case State::TYPE:
+				switch(ch_in)
+					{
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case ':':
+						node_current.type=type(token_in,error);
+						token_in.clear();
+						if(node_current.type==Type::COMPOUND)
+							{state_current=State::COMPOUND_BEGIN;}
+						else
+							{state_current=State::ARRAY_CHECK;}
+						break;
+					default:
+						token_in+=ch_in;
+					}
+				break;
 
-				default:
-					error("Bad state");
+			case State::ARRAY:
+				switch(ch_in)
+					{
+					case '"':
+						state_current=State::ITEM_STRING;
+						break;
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case ',':
+						p_array_append(array_pointers,token_in,error);
+						token_in.clear();
+						break;
+					case ']':
+						p_array_append(array_pointers,token_in,error);
+						token_in.clear();
+						state_current=State::DELIMITER;
+						break;
+					default:
+						if(ch_in<0 || ch_in>' ')
+							{token_in+=ch_in;}
+					}
+				break;
+
+			case State::DELIMITER:
+				switch(ch_in)
+					{
+					case ',':
+						state_current=State::KEY_BEGIN;
+						node_current=nodes.top();
+						break;
+					case '}':
+						state_current=State::DELIMITER;
+						node_current=nodes.top();
+						nodes.pop();
+						break;
+					default:
+						if(ch_in<0 || ch_in>' ')
+							{
+							error("Invalid character");
+							return *this;
+							}
+					}
+				break;
+
+			case State::VALUE:
+				switch(ch_in)
+					{
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '"':
+						state_current=State::VALUE_STRING;
+						break;
+					case ',':
+						state_current=State::KEY_BEGIN;
+						valueSet(node_current.type,node_current.key,token_in,error);
+						token_in.clear();
+						node_current=nodes.top();
+						break;
+					case '}':
+						state_current=State::DELIMITER;
+						valueSet(node_current.type,node_current.key,token_in,error);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						break;
+					default:
+						if(ch_in<0 || ch_in>' ')
+							{token_in+=ch_in;}
+					}
+				break;
+
+			case State::VALUE_STRING:
+				switch(ch_in)
+					{
+					case '\"':
+						state_current=State::VALUE;
+						break;
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					default:
+						token_in+=ch_in;
+					}
+				break;
+
+			case State::ITEM_STRING:
+				switch(ch_in)
+					{
+					case '\"':
+						state_current=State::ARRAY;
+						break;
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					default:
+						token_in+=ch_in;
+					}
+				break;
+
+			case State::ESCAPE:
+				if(state_old==State::KEY && ch_in=='/')
+					{
+					error("'/' cannot be used in keys");
 					return *this;
-				}
-			}
+					}
 
-		return *this;
+				token_in+=ch_in;
+				state_current=state_old;
+				break;
+
+			default:
+				error("Bad state");
+				return *this;
+			}
 		}
+
+	return *this;
 	}
 
 #endif
