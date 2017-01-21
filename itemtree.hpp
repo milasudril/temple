@@ -99,6 +99,13 @@ namespace
 
 namespace TeMpLe
 	{
+	struct BasicStorage
+		{
+		template<class T>
+		using ArrayType=std::vector<T>;
+		};
+
+	template<class StorageModel=BasicStorage>
 	class ItemTree
 		{
 		public:
@@ -132,7 +139,7 @@ namespace TeMpLe
 			using value_map=std::map<Key,T>;
 
 			template<class T>
-			using array_map=std::map<Key,std::vector<T>>;
+			using array_map=std::map<Key,typename StorageModel::template ArrayType<T>>;
 
 			template<class T>
 			struct Data
@@ -283,8 +290,9 @@ namespace
 		}
 	}
 
+template<class StorageModel>
 template<class Reader,class ErrorHandler>
-TeMpLe::ItemTree& TeMpLe::ItemTree::load(Reader& reader,ErrorHandler& error)
+TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& reader,ErrorHandler& error)
 	{
 /* Syntax example:
 {

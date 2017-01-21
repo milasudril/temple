@@ -54,7 +54,7 @@ void print(int64_t val)
 struct Proc
 	{
 	template<class T>
-	void operator()(const ItemTree::Key& key,const T& val)
+	void operator()(const ItemTree<BasicStorage>::Key& key,const T& val)
 		{
 		printf("\"%s\":",key.c_str());
 		print(val);
@@ -62,7 +62,7 @@ struct Proc
 		}
 
 	template<class T>
-	void operator()(const ItemTree::Key& key,const std::vector<T>& val)
+	void operator()(const ItemTree<BasicStorage>::Key& key,const std::vector<T>& val)
 		{
 		printf("\"%s\":[",key.c_str());
 		auto ptr=val.data();
@@ -91,7 +91,7 @@ int main()
 ,"bar":{"baz"i64:1243}
 })EOF";
 
-	ItemTree tree(Reader{src},ErrorHandler{});
+	ItemTree<> tree(Reader{src},ErrorHandler{});
 	tree.itemsProcess(Proc{});
 
 	return 0;
