@@ -2,6 +2,7 @@
 
 #include "itemtree.hpp"
 #include <cstdio>
+#include <clocale>
 
 using namespace Temple;
 
@@ -88,6 +89,7 @@ struct Proc
 
 int main()
 	{
+	setlocale(LC_ALL,"");
 	const char* src=R"EOF({
 "foo":
 	{

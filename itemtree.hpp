@@ -152,14 +152,14 @@ namespace Temple
 
 			template<class T,class ExceptionHandler>
 			static void array_append(void* array_pointer,const std::string& value
-				,ExceptionHandler& eh)
-				{get<T>(array_pointer)->push_back(Converter<T,ExceptionHandler>::convert(value,eh));}
+				,locale_t loc,ExceptionHandler& eh)
+				{get<T>(array_pointer)->push_back(Converter<T,ExceptionHandler>::convert(value,loc,eh));}
 
 			template<class ExceptionHandler>
 			struct ArrayPointer
 				{
 				void* m_object;
-				void (*append)(void* object,const std::string& value,ExceptionHandler& eh);
+				void (*append)(void* object,const std::string& value,locale_t loc,ExceptionHandler& eh);
 				};
 
 			template<class ExceptionHandler>
@@ -190,35 +190,45 @@ namespace Temple
 				}
 
 			template<class ExceptionHandler>
-			void valueSet(Type type,const Key& key,const std::string& value,ExceptionHandler& eh)
+			void valueSet(Type type,const Key& key,const std::string& value,locale_t loc,ExceptionHandler& eh)
 				{
 				switch(type)
 					{
 					case Type::I8:
-						data_int8.values[key]=Converter<int8_t,ExceptionHandler>::convert(value,eh);
+						data_int8.values[key]=Converter<int8_t,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::I16:
-						data_int16.values[key]=Converter<int16_t,ExceptionHandler>::convert(value,eh);
+						data_int16.values[key]=Converter<int16_t,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::I32:
-						data_int32.values[key]=Converter<int32_t,ExceptionHandler>::convert(value,eh);
+						data_int32.values[key]=Converter<int32_t,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::I64:
-						data_int64.values[key]=Converter<int64_t,ExceptionHandler>::convert(value,eh);
+						data_int64.values[key]=Converter<int64_t,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::FLOAT:
-						data_float.values[key]=Converter<float,ExceptionHandler>::convert(value,eh);
+						data_float.values[key]=Converter<float,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::DOUBLE:
-						data_double.values[key]=Converter<double,ExceptionHandler>::convert(value,eh);
+						data_double.values[key]=Converter<double,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::STRING:
-						data_string.values[key]=Converter<std::string,ExceptionHandler>::convert(value,eh);
+						data_string.values[key]=Converter<std::string,ExceptionHandler>::convert(value,loc,eh);
 						break;
 					case Type::COMPOUND:
 						eh.raise(Error("Internal error: invalid value type."));
 					}
 				}
+
+			struct Locale
+				{
+				Locale():m_handle(newlocale(LC_ALL,"C",0))
+					{}
+				~Locale()
+					{freelocale(m_handle);}
+
+				locale_t m_handle;
+				};
 		};
 	}
 
@@ -247,6 +257,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 	auto state_current=State::COMPOUND_BEGIN;
 	auto state_old=state_current;
 	std::string token_in;
+	Locale loc;
 
 	struct Node
 		{
@@ -400,13 +411,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::ESCAPE;
 						break;
 					case ',':
-						array_pointer.append(array_pointer.m_object,token_in,monitor);
+						array_pointer.append(array_pointer.m_object,token_in,loc.m_handle,monitor);
 						token_in.clear();
 						break;
 					case ']':
 						if(token_in.size()!=0)
 							{	
-							array_pointer.append(array_pointer.m_object,token_in,monitor);
+							array_pointer.append(array_pointer.m_object,token_in,loc.m_handle,monitor);
 							token_in.clear();
 							}
 						state_current=State::DELIMITER;
@@ -472,13 +483,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						break;
 					case ',':
 						state_current=State::KEY_BEGIN;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
+						valueSet(node_current.type,node_current.key,token_in,loc.m_handle,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						break;
 					case '}':
 						state_current=State::DELIMITER;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
+						valueSet(node_current.type,node_current.key,token_in,loc.m_handle,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						nodes.pop();
