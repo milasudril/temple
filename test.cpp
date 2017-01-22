@@ -95,13 +95,15 @@ int main()
 	,"a string"s:"Hello, World"
 	,"another valid string"s:This\ is\ legal\ too
 	,"more objects":{"foo"s:"bar","value"d:3.14}
-	,"this is a string":{}
+	,"empty array"i32:[]
 	}
 ,"bar":{"baz"i64:124380867045036}
 ,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:1,"bar"i32:2}]}]
 ,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
 })EOF";
 
+/*	
+	*/
 	Monitor m;
 	try
 		{

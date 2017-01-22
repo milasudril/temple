@@ -371,8 +371,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 				switch(ch_in)
 					{
 					case '{':
-						monitor.raise(Error("Anonymous compound opened, but current object has "
-							"been declared as ",type(node_current.type,monitor)));
+						monitor.raise(Error("Anonymous compound has been opened, but current object has "
+							"been declared as '",type(node_current.type,monitor),'\''));
 						return *this;
 					case '[':
 						state_current=State::ARRAY;
@@ -406,6 +406,9 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						nodes.push(node_current);
 						state_current=State::COMPOUND_BEGIN;
 						break;
+					case ']':
+						monitor.raise(Error("Empty array of compounds is not allowed."));
+						return *this;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
@@ -420,10 +423,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 					case '"':
 						state_current=State::KEY;
 						break;
+					case '}':
+						monitor.raise(Error("Empty compound is not allowed."));
+						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							monitor.raise(Error("A key must begin with '\"'."));
+							monitor.raise(Error("A key must begin with '\"', not '",ch_in,"'."));
 							return *this;
 							}
 					}
@@ -488,8 +494,11 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						token_in.clear();
 						break;
 					case ']':
-						array_pointer.append(array_pointer.m_object,token_in,monitor);
-						token_in.clear();
+						if(token_in.size()!=0)
+							{	
+							array_pointer.append(array_pointer.m_object,token_in,monitor);
+							token_in.clear();
+							}
 						state_current=State::DELIMITER;
 						break;
 					default:
