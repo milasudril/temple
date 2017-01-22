@@ -91,7 +91,7 @@ int main()
 	const char* src=R"EOF({
 "foo":
 	{
-	 "bar"i32:[1,2,3]
+	 "bar"i32:[1,2,3,4]
 	,"a string"s:"Hello, World"
 	,"another valid string"s:This\ is\ legal\ too
 	,"more objects":{"foo"s:"bar","value"d:3.14}

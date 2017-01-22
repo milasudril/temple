@@ -9,6 +9,8 @@
 #include <vector>
 #include <stack>
 #include <cassert>
+#include <cstdlib>
+#include <cerrno>
 
 namespace
 	{
@@ -17,11 +19,72 @@ namespace
 		{};
 
 	template<class ExceptionHandler>
+	long strtol(const std::string& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		errno=0;
+		auto x=::strtol(str.c_str(),&endptr,0);
+		if(errno==ERANGE)
+			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid integer."));}
+
+		return x;
+		}
+
+	template<class ExceptionHandler>
+	long long strtoll(const std::string& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		errno=0;
+		auto x=::strtoll(str.c_str(),&endptr,0);
+		if(errno==ERANGE)
+			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid integer."));}
+
+		return x;
+		}
+
+	template<class ExceptionHandler>
+	float strtof(const std::string& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		errno=0;
+		auto x=::strtof(str.c_str(),&endptr);
+		if(errno==ERANGE)
+			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."));}
+
+		return x;
+		}
+
+	template<class ExceptionHandler>
+	double strtod(const std::string& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		errno=0;
+		auto x=::strtod(str.c_str(),&endptr);
+		if(errno==ERANGE)
+			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."));}
+
+		return x;
+		}
+
+
+	template<class ExceptionHandler>
 	struct Converter<int8_t,ExceptionHandler>
 		{
 		static int8_t convert(const std::string& value,ExceptionHandler& eh)
 			{
-			auto x=std::stoi(value);
+			auto x=strtol(value,eh);
 			if(x<-128 || x>127)
 				{
 				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
@@ -36,7 +99,7 @@ namespace
 		{
 		static int16_t convert(const std::string& value,ExceptionHandler& eh)
 			{
-			auto x=std::stoi(value);
+			auto x=strtol(value,eh);
 			if(x<-32768 || x>32767)
 				{
 				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
@@ -51,7 +114,7 @@ namespace
 		{
 		static int32_t convert(const std::string& value,ExceptionHandler& eh)
 			{
-			auto x=std::stoll(value);
+			auto x=strtoll(value,eh);
 			if(x<-2147483648 || x>2147483647)
 				{
 				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
@@ -65,31 +128,21 @@ namespace
 	struct Converter<int64_t,ExceptionHandler>
 		{
 		static int64_t convert(const std::string& value,ExceptionHandler& eh)
-			{
-			auto x=std::stoll(value);
-		//FIXME
-			return x;
-			}
+			{return strtoll(value,eh);}
 		};
 
 	template<class ExceptionHandler>
 	struct Converter<float,ExceptionHandler>
 		{
 		static float convert(const std::string& value,ExceptionHandler& eh)
-			{
-		//FIXME
-			return std::stof(value);
-			}
+			{return strtof(value,eh);}
 		};
 
 	template<class ExceptionHandler>
 	struct Converter<double,ExceptionHandler>
 		{
 		static double convert(const std::string& value,ExceptionHandler& eh)
-			{
-		//FIXME
-			return std::stod(value);
-			}
+			{return strtod(value,eh);}
 		};
 
 	template<class ExceptionHandler>
