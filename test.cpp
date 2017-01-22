@@ -3,7 +3,7 @@
 #include "itemtree.hpp"
 #include <cstdio>
 
-using namespace TeMpLe;
+using namespace Temple;
 
 struct Reader
 	{
