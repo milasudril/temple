@@ -10,15 +10,15 @@ struct Reader
 	const char* r_src;
 	};
 
-int getc(Reader& reader)
+char codepointGet(Reader& reader)
 	{
 	auto v=*(reader.r_src);
 	++reader.r_src;
 	return v;
 	}
 
-int eof(Reader& reader)
-	{return 0;}
+bool eof(Reader& reader)
+	{return *reader.r_src==0;}
 
 struct ErrorHandler
 	{

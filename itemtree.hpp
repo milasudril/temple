@@ -329,11 +329,13 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 	ArrayPointers array_pointers;
 	auto p_array_append=array_append<int8_t,ErrorHandler>;
 
-	while(1)
+//	Do not call feof, since that function expects that the caller
+//	has tried to read data first. This is not compatible with a 
+//	C-style string
+	while(!eof(reader))
 		{
-		auto ch_in=getc(reader);
-		if(ch_in==eof(reader))
-			{return *this;}
+	//	Likewise, fgetc does not work.
+		auto ch_in=codepointGet(reader);
 
 		switch(state_current)
 			{
@@ -608,7 +610,8 @@ TeMpLe::ItemTree<StorageModel>& TeMpLe::ItemTree<StorageModel>::load(Reader& rea
 				return *this;
 			}
 		}
-	assert(nodes.size()==0);
+	if(nodes.size())
+		{error("Unterminated block");}
 	return *this;
 	}
 
