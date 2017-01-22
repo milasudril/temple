@@ -20,19 +20,27 @@ char codepointGet(Reader& reader)
 bool eof(Reader& reader)
 	{return *reader.r_src==0;}
 
-struct ErrorHandler
+class Monitor
 	{
-	void operator()(const char* message)
-		{
-		fprintf(stderr,"Error: %s",message);
-		abort();
-		}
+	public:
+		void raise(const Temple::Error& error)
+			{throw error;}
 
-	void operator()(const char* message,const char* comment)
-		{
-		fprintf(stderr,"Error: %s (%s)",message,comment);
-		abort();
-		}
+		void positionUpdate(uintmax_t line,uintmax_t col) noexcept
+			{
+			m_line=line;
+			m_col=col;
+			}
+
+		auto line() noexcept
+			{return m_line;}
+
+		auto col() noexcept
+			{return m_col;}
+
+	private:
+		uintmax_t m_line;
+		uintmax_t m_col;
 	};
 
 template<class T>
@@ -87,14 +95,22 @@ int main()
 	,"a string"s:"Hello, World"
 	,"another valid string"s:This\ is\ legal\ too
 	,"more objects":{"foo"s:"bar","value"d:3.14}
+	,"this is a string":{}
 	}
 ,"bar":{"baz"i64:124380867045036}
 ,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:1,"bar"i32:2}]}]
 ,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
 })EOF";
 
-	ItemTree<> tree(Reader{src},ErrorHandler{});
-	tree.itemsProcess(Proc{});
-
+	Monitor m;
+	try
+		{
+		ItemTree<> tree(Reader{src},m);
+		tree.itemsProcess(Proc{});
+		}
+	catch(const Temple::Error& error)
+		{
+		fprintf(stderr,"%llu:%llu: %s\n",m.line(),m.col(),error.message());
+		}
 	return 0;
 	}

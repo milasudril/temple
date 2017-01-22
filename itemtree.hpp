@@ -1,6 +1,8 @@
 #ifndef AJSON_ITEMTREE_HPP
 #define AJSON_ITEMTREE_HPP
 
+#include "error.hpp"
+
 #include <cstdint>
 #include <map>
 #include <string>
@@ -10,59 +12,59 @@
 
 namespace
 	{
-	template<class T,class ErrorHandler>
+	template<class T,class ExceptionHandler>
 	struct Converter
 		{};
 
-	template<class ErrorHandler>
-	struct Converter<int8_t,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<int8_t,ExceptionHandler>
 		{
-		static int8_t convert(const std::string& value,ErrorHandler& error)
+		static int8_t convert(const std::string& value,ExceptionHandler& eh)
 			{
 			auto x=std::stoi(value);
 			if(x<-128 || x>127)
 				{
-				error("Value out of range");
+				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
 				abort();
 				}
 			return x;
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<int16_t,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<int16_t,ExceptionHandler>
 		{
-		static int16_t convert(const std::string& value,ErrorHandler& error)
+		static int16_t convert(const std::string& value,ExceptionHandler& eh)
 			{
 			auto x=std::stoi(value);
 			if(x<-32768 || x>32767)
 				{
-				error("Value out of range");
+				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
 				abort();
 				}
 			return x;
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<int32_t,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<int32_t,ExceptionHandler>
 		{
-		static int32_t convert(const std::string& value,ErrorHandler& error)
+		static int32_t convert(const std::string& value,ExceptionHandler& eh)
 			{
 			auto x=std::stoll(value);
 			if(x<-2147483648 || x>2147483647)
 				{
-				error("Value out of range");
+				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
 				abort();
 				}
 			return x;
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<int64_t,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<int64_t,ExceptionHandler>
 		{
-		static int64_t convert(const std::string& value,ErrorHandler& error)
+		static int64_t convert(const std::string& value,ExceptionHandler& eh)
 			{
 			auto x=std::stoll(value);
 		//FIXME
@@ -70,30 +72,30 @@ namespace
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<float,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<float,ExceptionHandler>
 		{
-		static float convert(const std::string& value,ErrorHandler& error)
+		static float convert(const std::string& value,ExceptionHandler& eh)
 			{
 		//FIXME
 			return std::stof(value);
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<double,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<double,ExceptionHandler>
 		{
-		static double convert(const std::string& value,ErrorHandler& error)
+		static double convert(const std::string& value,ExceptionHandler& eh)
 			{
 		//FIXME
 			return std::stod(value);
 			}
 		};
 
-	template<class ErrorHandler>
-	struct Converter<std::string,ErrorHandler>
+	template<class ExceptionHandler>
+	struct Converter<std::string,ExceptionHandler>
 		{
-		static const std::string& convert(const std::string& value,ErrorHandler& error)
+		static const std::string& convert(const std::string& value,ExceptionHandler& eh)
 			{return value;}
 		};
 	}
@@ -114,16 +116,16 @@ namespace Temple
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
 
-			template<class Reader,class ErrorHandler>
-			ItemTree(Reader&& reader,ErrorHandler&& error)
-				{load(reader,error);}
+			template<class Reader,class ProgressMonitor>
+			ItemTree(Reader&& reader,ProgressMonitor&& monitor)
+				{load(reader,monitor);}
 
-			template<class Reader,class ErrorHandler>
-			ItemTree& load(Reader&& reader,ErrorHandler& error)
-				{return load(reader,error);}
+			template<class Reader,class ProgressMonitor>
+			ItemTree& load(Reader&& reader,ProgressMonitor& monitor)
+				{return load(reader,monitor);}
 
-			template<class Reader,class ErrorHandler>
-			ItemTree& load(Reader& reader,ErrorHandler& error);
+			template<class Reader,class ProgressMonitor>
+			ItemTree& load(Reader& reader,ProgressMonitor& monitor);
 
 			template<class ItemProcessor>
 			void itemsProcess(ItemProcessor&& proc)
@@ -185,8 +187,8 @@ namespace Temple
 
 			enum class Type:int{COMPOUND,STRING,I8,I16,I32,I64,FLOAT,DOUBLE};
 
-			template<class ErrorHandler>
-			static Type type(const std::string& str,ErrorHandler& error)
+			template<class ExceptionHandler>
+			static Type type(const std::string& str,ExceptionHandler& eh)
 				{
 				if(str=="")
 					{return Type::COMPOUND;}
@@ -204,89 +206,115 @@ namespace Temple
 					{return Type::FLOAT;}
 				if(str=="d")
 					{return Type::DOUBLE;}
-				error("Unknown type",str.c_str());
+				eh.raise(Error("The type identifier ",str.c_str()," does not correspond to a known type."));
 				return Type::COMPOUND;
+				}
+
+			template<class ExceptionHandler>
+			static const char* type(Type type,ExceptionHandler& eh)
+				{
+				switch(type)
+					{
+					case Type::I8:
+						return "i8";
+					case Type::I16:
+						return "i16";
+					case Type::I32:
+						return "i32";
+					case Type::I64:
+						return "i64";
+					case Type::FLOAT:
+						return "f";
+					case Type::DOUBLE:
+						return "d";
+					case Type::STRING:
+						return "s";
+					case Type::COMPOUND:
+						return "";
+					}
+				eh.raise(Error("Internal error: invalid value type."));
+				return nullptr;
 				}
 
 			template<class T>
 			static ArrayType<T>* get(void* array_pointer) noexcept
 				{return reinterpret_cast<ArrayType<T>*>(array_pointer);}
 
-			template<class T,class ErrorHandler>
+			template<class T,class ExceptionHandler>
 			static void array_append(void* array_pointer,const std::string& value
-				,ErrorHandler& error)
-				{get<T>(array_pointer)->push_back(Converter<T,ErrorHandler>::convert(value,error));}
+				,ExceptionHandler& eh)
+				{get<T>(array_pointer)->push_back(Converter<T,ExceptionHandler>::convert(value,eh));}
 
-			template<class ErrorHandler>
+			template<class ExceptionHandler>
 			struct ArrayPointer
 				{
 				void* m_object;
-				void (*append)(void* object,const std::string& value,ErrorHandler& error);
+				void (*append)(void* object,const std::string& value,ExceptionHandler& eh);
 				};
 
-			template<class ErrorHandler>
-			ArrayPointer<ErrorHandler> arrayGet(Type type,const std::string& key,ErrorHandler& error)
+			template<class ExceptionHandler>
+			ArrayPointer<ExceptionHandler> arrayGet(Type type,const std::string& key,ExceptionHandler& eh)
 				{
 				switch(type)
 					{
 					case Type::I8:
-						return {&data_int8.arrays[key],array_append<int8_t,ErrorHandler>};
+						return {&data_int8.arrays[key],array_append<int8_t,ExceptionHandler>};
 					case Type::I16:
-						return {&data_int16.arrays[key],array_append<int16_t,ErrorHandler>};
+						return {&data_int16.arrays[key],array_append<int16_t,ExceptionHandler>};
 					case Type::I32:
-						return {&data_int32.arrays[key],array_append<int32_t,ErrorHandler>};
+						return {&data_int32.arrays[key],array_append<int32_t,ExceptionHandler>};
 					case Type::I64:
-						return {&data_int64.arrays[key],array_append<int64_t,ErrorHandler>};
+						return {&data_int64.arrays[key],array_append<int64_t,ExceptionHandler>};
 					case Type::FLOAT:
-						return {&data_float.arrays[key],array_append<float,ErrorHandler>};
+						return {&data_float.arrays[key],array_append<float,ExceptionHandler>};
 					case Type::DOUBLE:
-						return {&data_double.arrays[key],array_append<double,ErrorHandler>};
+						return {&data_double.arrays[key],array_append<double,ExceptionHandler>};
 					case Type::STRING:
-						return {&data_string.arrays[key],array_append<std::string,ErrorHandler>};
+						return {&data_string.arrays[key],array_append<std::string,ExceptionHandler>};
 					case Type::COMPOUND:
-						error("Invalid value type");
+						eh.raise(Error("Internal error: invalid value type."));
 						return {nullptr,nullptr};
 					}
-				error("Invalid value type");
+				eh.raise(Error("Internal error: invalid value type."));
 				return {nullptr,nullptr};
 				}
 
-			template<class ErrorHandler>
-			void valueSet(Type type,const Key& key,const std::string& value,ErrorHandler& error)
+			template<class ExceptionHandler>
+			void valueSet(Type type,const Key& key,const std::string& value,ExceptionHandler& eh)
 				{
 				switch(type)
 					{
 					case Type::I8:
-						data_int8.values[key]=Converter<int8_t,ErrorHandler>::convert(value,error);
+						data_int8.values[key]=Converter<int8_t,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::I16:
-						data_int16.values[key]=Converter<int16_t,ErrorHandler>::convert(value,error);
+						data_int16.values[key]=Converter<int16_t,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::I32:
-						data_int32.values[key]=Converter<int32_t,ErrorHandler>::convert(value,error);
+						data_int32.values[key]=Converter<int32_t,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::I64:
-						data_int64.values[key]=Converter<int64_t,ErrorHandler>::convert(value,error);
+						data_int64.values[key]=Converter<int64_t,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::FLOAT:
-						data_float.values[key]=Converter<float,ErrorHandler>::convert(value,error);
+						data_float.values[key]=Converter<float,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::DOUBLE:
-						data_double.values[key]=Converter<double,ErrorHandler>::convert(value,error);
+						data_double.values[key]=Converter<double,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::STRING:
-						data_string.values[key]=Converter<std::string,ErrorHandler>::convert(value,error);
+						data_string.values[key]=Converter<std::string,ExceptionHandler>::convert(value,eh);
 						break;
 					case Type::COMPOUND:
-						error("Invalid value type");
+						eh.raise(Error("Internal error: invalid value type."));
 					}
 				}
 		};
 	}
 
 template<class StorageModel>
-template<class Reader,class ErrorHandler>
-Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& reader,ErrorHandler& error)
+template<class Reader,class ProgressMonitor>
+Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& reader,ProgressMonitor& monitor)
 	{
 /* Syntax example:
 {
@@ -304,7 +332,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 		,ITEM_STRING
 		};
 
-
+	uintmax_t line_count=1;
+	uintmax_t col_count=0;
 	auto state_current=State::COMPOUND_BEGIN;
 	auto state_old=state_current;
 	std::string token_in;
@@ -319,7 +348,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 		
 	Node node_current{"",Type::COMPOUND,0,0};
 	std::stack<Node> nodes;
-	ArrayPointer<ErrorHandler> array_pointer;
+	ArrayPointer<ProgressMonitor> array_pointer;
+	
 
 //	Do not call feof, since that function expects that the caller
 //	has tried to read data first. This is not compatible with a 
@@ -328,18 +358,25 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 		{
 	//	Likewise, fgetc does not work.
 		auto ch_in=codepointGet(reader);
-
+		if(ch_in=='\n')
+			{
+			++line_count;
+			col_count=0;
+			}
+		++col_count;
+		monitor.positionUpdate(line_count,col_count);
 		switch(state_current)
 			{
 			case State::ARRAY_CHECK:
 				switch(ch_in)
 					{
 					case '{':
-						error("Unexpected compound");
+						monitor.raise(Error("Anonymous compound opened, but current object has "
+							"been declared as ",type(node_current.type,monitor)));
 						return *this;
 					case '[':
 						state_current=State::ARRAY;
-						array_pointer=arrayGet(node_current.type,node_current.key,error);
+						array_pointer=arrayGet(node_current.type,node_current.key,monitor);
 						break;
 					case '"':
 						state_current=State::VALUE_STRING;
@@ -370,9 +407,9 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::COMPOUND_BEGIN;
 						break;
 					default:
-						if(ch_in<0 || ch_in>' ')
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							error("Expected array or compound");
+							monitor.raise(Error("Array '[' or compound '{' expected."));
 							return *this;
 							}
 					}
@@ -384,9 +421,9 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::KEY;
 						break;
 					default:
-						if(ch_in<0 || ch_in>' ')
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							error("Expected '\"'");
+							monitor.raise(Error("A key must begin with '\"'."));
 							return *this;
 							}
 					}
@@ -400,10 +437,10 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::ESCAPE;
 						break;
 					case '/':
-						error("'/' cannot be used in keys");
+						monitor.raise(Error("'/' cannot be used in keys."));
 						return *this;
 					case '#':
-						error("'#' cannot be used in keys");
+						monitor.raise(Error("'#' cannot be used in keys."));
 						return *this;
 					case '"':
 						node_current.key+='/';
@@ -424,7 +461,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::ESCAPE;
 						break;
 					case ':':
-						node_current.type=type(token_in,error);
+						node_current.type=type(token_in,monitor);
 						token_in.clear();
 						if(node_current.type==Type::COMPOUND)
 							{state_current=State::COMPOUND_BEGIN;}
@@ -447,16 +484,16 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						state_current=State::ESCAPE;
 						break;
 					case ',':
-						array_pointer.append(array_pointer.m_object,token_in,error);
+						array_pointer.append(array_pointer.m_object,token_in,monitor);
 						token_in.clear();
 						break;
 					case ']':
-						array_pointer.append(array_pointer.m_object,token_in,error);
+						array_pointer.append(array_pointer.m_object,token_in,monitor);
 						token_in.clear();
 						state_current=State::DELIMITER;
 						break;
 					default:
-						if(ch_in<0 || ch_in>' ')
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{token_in+=ch_in;}
 					}
 				break;
@@ -473,22 +510,32 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						break;
 					case '}':
 						state_current=State::DELIMITER;
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
 						node_current=nodes.top();
 						nodes.pop();
 						if(node_current.array)
-							{error("Expected ']' terminator");}
+							{monitor.raise(Error("An array must be terminated with ']'."));}
 						break;
 					case ']':
 						state_current=State::DELIMITER;
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
 						node_current=nodes.top();
 						nodes.pop();
 						if(!node_current.array)
-							{error("Expected '}' terminator");}
+							{monitor.raise(Error("A compound must be terminated with '}'."));}
 						break;
 					default:
-						if(ch_in<0 || ch_in>' ')
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							error("Invalid character");
+							monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
 							return *this;
 							}
 					}
@@ -506,19 +553,19 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						break;
 					case ',':
 						state_current=State::KEY_BEGIN;
-						valueSet(node_current.type,node_current.key,token_in,error);
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						break;
 					case '}':
 						state_current=State::DELIMITER;
-						valueSet(node_current.type,node_current.key,token_in,error);
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						nodes.pop();
 						break;
 					default:
-						if(ch_in<0 || ch_in>' ')
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{token_in+=ch_in;}
 					}
 				break;
@@ -556,21 +603,17 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 			case State::ESCAPE:
 				if(state_old==State::KEY && (ch_in=='/' || ch_in=='#'))
 					{
-					error("'/' or '#' cannot be used in keys");
+					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
 					return *this;
 					}
 
 				token_in+=ch_in;
 				state_current=state_old;
 				break;
-
-			default:
-				error("Bad state");
-				return *this;
 			}
 		}
 	if(nodes.size())
-		{error("Unterminated block");}
+		{monitor.raise(Error("Unterminated block at EOF."));}
 	return *this;
 	}
 

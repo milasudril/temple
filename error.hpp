@@ -1,4 +1,4 @@
-//@	{"targets":[{"name":"error.hpp","type":"include"}]}
+//@	{"targets":[{"name":"error.hpp","type":"include","cxxoptions":{"cxxversion_min":201402}}]}
 
 #ifndef TEMPLE_ERROR_HPP
 #define TEMPLE_ERROR_HPP
