@@ -151,6 +151,10 @@ namespace Temple
 			,locale_t loc,ExceptionHandler& eh)
 			{return value;}
 		};
+
+	template<class T,class ExceptionHandler>
+	T convert(const std::string& value,locale_t loc,ExceptionHandler& eh)
+		{return Converter<T,ExceptionHandler>::convert(value,loc,eh);}
 	}
 
 #endif

@@ -4,11 +4,13 @@
 #define AJSON_ITEMTREE_HPP
 
 #include "numberformat.hpp"
+#include "type.hpp"
 
 #include <map>
 #include <vector>
 #include <stack>
 #include <cassert>
+#include <cstddef>
 
 namespace Temple
 	{
@@ -53,115 +55,68 @@ namespace Temple
 			template<class ItemProcessor>
 			void itemsProcess(ItemProcessor&& proc)
 				{
-				data_int8.process(proc);
-				data_int16.process(proc);
-				data_int32.process(proc);
-				data_int64.process(proc);
-				data_float.process(proc);
-				data_double.process(proc);
-				data_string.process(proc);
+				auto i=m_keys.begin();
+				auto i_end=m_keys.end();
+				while(i!=i_end)
+					{
+					printf("%s\n",i->first.c_str());
+				/*	auto index=i->second;
+					auto type=static_cast<Type>(index/2);
+					switch(type)
+						{
+						case Type::I8:
+							proc(i->first,mapGet<Type::I8>().find(i->first)->second);
+							break;
+						case Type::I16:
+							proc(i->first,mapGet<Type::I16>().find(i->first)->second);
+							break;
+						case Type::I32:
+							proc(i->first,mapGet<Type::I32>().find(i->first)->second);
+							break;
+						case Type::I64:
+							proc(i->first,mapGet<Type::I64>().find(i->first)->second);
+							break;
+						case Type::FLOAT:
+							proc(i->first,mapGet<Type::FLOAT>().find(i->first)->second);
+							break;
+						}*/
+					++i;
+					}
 				}
+
+			template<Type t>
+			auto& dataGet() noexcept
+				{return dataGet<t>(m_data);}
+
+			template<Type t>
+			const auto& dataGet() const noexcept
+				{return dataGet<t>(m_data);}
 
 		private:
 			using Key=StringType;
 
-			template<class T>
-			using value_map=MapType<Key,T>;
-
-			template<class T>
-			using array_map=MapType<Key, ArrayType<T> >;
-
-			template<class T>
-			struct Data
-				{
-				value_map<T> values;
-				array_map<T> arrays;
-				
-				template<class ItemProcessor>
-				void process(ItemProcessor& proc)
-					{
-						{
-						auto i=values.begin();
-						auto i_end=values.end();
-						while(i!=i_end)
-							{
-							proc(i->first,i->second);
-							++i;
-							}
-						}
-
-						{
-						auto i=arrays.begin();
-						auto i_end=arrays.end();
-						while(i!=i_end)
-							{
-							proc(i->first,i->second);
-							++i;
-							}
-						}
-					}
-				};
+			static constexpr auto type_last=Type::COMPOUND;
+			static constexpr auto type_first=Type::I8;
 		
-			Data<int8_t> data_int8;
-			Data<int16_t> data_int16;
-			Data<int32_t> data_int32;
-			Data<int64_t> data_int64;
-			Data<float> data_float;
-			Data<double> data_double;
-			Data<StringType> data_string;
+			template<Type t=type_last,bool dummy=1>
+			struct Data:public Data<previous(t),dummy>
+				{MapType<Key,typename TypeGet<previous(t),StorageModel>::type> content;};
 
-			enum class Type:uint32_t{COMPOUND,STRING,I8,I16,I32,I64,FLOAT,DOUBLE};
+			template<bool dummy>
+			struct Data<type_first,dummy>
+				{};
+
+			Data<> m_data;
+			
+			template<Type t>
+			static auto& dataGet(Data<next(t)>& data) noexcept
+				{return data.content;};
+
+			template<Type t>
+			static const auto& dataGet(const Data<next(t)>& data) noexcept
+				{return data.content;};
 
 			MapType<StringType,Type> m_keys;
-
-			template<class ExceptionHandler>
-			static Type type(const std::string& str,ExceptionHandler& eh)
-				{
-				if(str=="")
-					{return Type::COMPOUND;}
-				if(str=="s")
-					{return Type::STRING;}
-				if(str=="i8")
-					{return Type::I8;}
-				if(str=="i16")
-					{return Type::I16;}
-				if(str=="i32")
-					{return Type::I32;}
-				if(str=="i64")
-					{return Type::I64;}
-				if(str=="f")
-					{return Type::FLOAT;}
-				if(str=="d")
-					{return Type::DOUBLE;}
-				eh.raise(Error("The type identifier ",str.c_str()," does not correspond to a known type."));
-				return Type::COMPOUND;
-				}
-
-			template<class ExceptionHandler>
-			static const char* type(Type type,ExceptionHandler& eh)
-				{
-				switch(type)
-					{
-					case Type::I8:
-						return "i8";
-					case Type::I16:
-						return "i16";
-					case Type::I32:
-						return "i32";
-					case Type::I64:
-						return "i64";
-					case Type::FLOAT:
-						return "f";
-					case Type::DOUBLE:
-						return "d";
-					case Type::STRING:
-						return "s";
-					case Type::COMPOUND:
-						return "";
-					}
-				eh.raise(Error("Internal error: invalid value type."));
-				return nullptr;
-				}
 
 			template<class T>
 			static ArrayType<T>* get(void* array_pointer) noexcept
@@ -170,18 +125,19 @@ namespace Temple
 			template<class T,class ExceptionHandler>
 			static void array_append(void* array_pointer,const std::string& value
 				,locale_t loc,ExceptionHandler& eh)
-				{get<T>(array_pointer)->push_back(Converter<T,ExceptionHandler>::convert(value,loc,eh));}
+				{get<T>(array_pointer)->push_back(convert<T>(value,loc,eh));}
 
 			template<class ExceptionHandler>
 			struct ArrayPointer
 				{
 				void* m_object;
 				void (*append)(void* object,const std::string& value,locale_t loc,ExceptionHandler& eh);
-				};
+				};	
 
 			template<class ExceptionHandler>
 			ArrayPointer<ExceptionHandler> arrayGet(Type type,const StringType& key,ExceptionHandler& eh)
 				{
+				type=arraySet(type);
 				auto ip=m_keys.insert({key,type});
 				if(!ip.second)
 					{
@@ -189,28 +145,16 @@ namespace Temple
 					return {nullptr,nullptr};
 					}
 
-				switch(type)
+				ArrayPointer<ExceptionHandler> ret{nullptr,nullptr};
+				for_type<StorageModel,1,2>(type,[&ret,this,&key](auto x)
 					{
-					case Type::I8:
-						return {&data_int8.arrays[key],array_append<int8_t,ExceptionHandler>};
-					case Type::I16:
-						return {&data_int16.arrays[key],array_append<int16_t,ExceptionHandler>};
-					case Type::I32:
-						return {&data_int32.arrays[key],array_append<int32_t,ExceptionHandler>};
-					case Type::I64:
-						return {&data_int64.arrays[key],array_append<int64_t,ExceptionHandler>};
-					case Type::FLOAT:
-						return {&data_float.arrays[key],array_append<float,ExceptionHandler>};
-					case Type::DOUBLE:
-						return {&data_double.arrays[key],array_append<double,ExceptionHandler>};
-					case Type::STRING:
-						return {&data_string.arrays[key],array_append<std::string,ExceptionHandler>};
-					case Type::COMPOUND:
-						eh.raise(Error("Internal error: invalid value type."));
-						return {nullptr,nullptr};
-					}
-				eh.raise(Error("Internal error: invalid value type."));
-				return {nullptr,nullptr};
+					static constexpr auto type_id=decltype(x)::id;
+					static_assert(static_cast<int>(type_id)%2,"Type is not an array");
+					typedef typename TypeGet<arrayUnset(type_id),StorageModel>::type raw_type;
+					auto callback=this->array_append<raw_type,ExceptionHandler>;
+					ret={&( this->dataGet<type_id>()[key]),callback};
+					},eh);
+				return ret;
 				}
 
 			template<class ExceptionHandler>
@@ -223,32 +167,12 @@ namespace Temple
 					return;
 					}
 
-				switch(type)
+				for_type<StorageModel,0,2>(type,[this,&key,loc,&value,&eh](auto x)
 					{
-					case Type::I8:
-						data_int8.values[key]=Converter<int8_t,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::I16:
-						data_int16.values[key]=Converter<int16_t,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::I32:
-						data_int32.values[key]=Converter<int32_t,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::I64:
-						data_int64.values[key]=Converter<int64_t,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::FLOAT:
-						data_float.values[key]=Converter<float,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::DOUBLE:
-						data_double.values[key]=Converter<double,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::STRING:
-						data_string.values[key]=Converter<std::string,ExceptionHandler>::convert(value,loc,eh);
-						break;
-					case Type::COMPOUND:
-						eh.raise(Error("Internal error: invalid value type."));
-					}
+					static constexpr auto type_id=decltype(x)::id;
+					static_assert((static_cast<int>(type_id)%2)==0,"Type is an array");
+					this->dataGet<type_id>()[key]=convert<typename TypeGet<type_id,StorageModel>::type>(value,loc,eh);
+					},eh);
 				}
 
 			struct Locale
