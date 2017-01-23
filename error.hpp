@@ -54,4 +54,5 @@ namespace Temple
 			char m_buffer[1024];
 		};
 	}
+
 #endif

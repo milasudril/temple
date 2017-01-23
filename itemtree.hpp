@@ -16,15 +16,28 @@ namespace Temple
 		{
 		template<class T>
 		using ArrayType=std::vector<T>;
+
+		template<class Key,class Value>
+		using MapType=std::map<Key,Value>;
+
+		using StringType=std::string;
+
+		using BufferType=std::string;
 		};
 
 	template<class StorageModel=BasicStorage>
 	class ItemTree
 		{
 		public:
-			typedef std::string Key;
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
+
+			template<class Key,class Value>
+			using MapType=typename StorageModel::template MapType<Key,Value>;
+
+			using StringType=typename StorageModel::StringType;
+
+			using BufferType=typename StorageModel::BufferType;
 
 			template<class Reader,class ProgressMonitor>
 			ItemTree(Reader&& reader,ProgressMonitor&& monitor)
@@ -50,11 +63,13 @@ namespace Temple
 				}
 
 		private:
-			template<class T>
-			using value_map=std::map<Key,T>;
+			using Key=StringType;
 
 			template<class T>
-			using array_map=std::map<Key, ArrayType<T> >;
+			using value_map=MapType<Key,T>;
+
+			template<class T>
+			using array_map=MapType<Key, ArrayType<T> >;
 
 			template<class T>
 			struct Data
@@ -93,9 +108,11 @@ namespace Temple
 			Data<int64_t> data_int64;
 			Data<float> data_float;
 			Data<double> data_double;
-			Data<std::string> data_string;
+			Data<StringType> data_string;
 
 			enum class Type:int{COMPOUND,STRING,I8,I16,I32,I64,FLOAT,DOUBLE};
+
+			MapType<StringType,Type> m_keys;
 
 			template<class ExceptionHandler>
 			static Type type(const std::string& str,ExceptionHandler& eh)
@@ -163,7 +180,7 @@ namespace Temple
 				};
 
 			template<class ExceptionHandler>
-			ArrayPointer<ExceptionHandler> arrayGet(Type type,const std::string& key,ExceptionHandler& eh)
+			ArrayPointer<ExceptionHandler> arrayGet(Type type,const StringType& key,ExceptionHandler& eh)
 				{
 				switch(type)
 					{
@@ -190,7 +207,7 @@ namespace Temple
 				}
 
 			template<class ExceptionHandler>
-			void valueSet(Type type,const Key& key,const std::string& value,locale_t loc,ExceptionHandler& eh)
+			void valueSet(Type type,const Key& key,const StringType& value,locale_t loc,ExceptionHandler& eh)
 				{
 				switch(type)
 					{
@@ -256,12 +273,12 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 	uintmax_t col_count=0;
 	auto state_current=State::COMPOUND_BEGIN;
 	auto state_old=state_current;
-	std::string token_in;
+	BufferType token_in;
 	Locale loc;
 
 	struct Node
 		{
-		std::string key;
+		StringType key;
 		Type type;
 		size_t item_count;
 		bool array;
