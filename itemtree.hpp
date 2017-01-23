@@ -110,7 +110,7 @@ namespace Temple
 			Data<double> data_double;
 			Data<StringType> data_string;
 
-			enum class Type:int{COMPOUND,STRING,I8,I16,I32,I64,FLOAT,DOUBLE};
+			enum class Type:uint32_t{COMPOUND,STRING,I8,I16,I32,I64,FLOAT,DOUBLE};
 
 			MapType<StringType,Type> m_keys;
 
@@ -182,6 +182,13 @@ namespace Temple
 			template<class ExceptionHandler>
 			ArrayPointer<ExceptionHandler> arrayGet(Type type,const StringType& key,ExceptionHandler& eh)
 				{
+				auto ip=m_keys.insert({key,type});
+				if(!ip.second)
+					{
+					eh.raise(Error("Key «",key.c_str(),"» already exists."));
+					return {nullptr,nullptr};
+					}
+
 				switch(type)
 					{
 					case Type::I8:
@@ -209,6 +216,13 @@ namespace Temple
 			template<class ExceptionHandler>
 			void valueSet(Type type,const Key& key,const StringType& value,locale_t loc,ExceptionHandler& eh)
 				{
+				auto ip=m_keys.insert({key,type});
+				if(!ip.second)
+					{
+					eh.raise(Error("Key «",key.c_str(),"» already exists."));
+					return;
+					}
+
 				switch(type)
 					{
 					case Type::I8:
