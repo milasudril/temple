@@ -57,13 +57,18 @@ namespace Temple
 				{
 				auto i=m_keys.begin();
 				auto i_end=m_keys.end();
+
+				Iterators<> iterators(m_data);
+
 				while(i!=i_end)
 					{
 					auto& key=i->first;
-					for_type<StorageModel,0,1>(i->second,[&key,this,&proc](auto x)
+					for_type<StorageModel,0,1>(i->second,[&key,&iterators,this,&proc](auto x)
 						{
 						static constexpr auto type_id=decltype(x)::id;
-						proc(key,this->dataGet<type_id>().find(key)->second);
+						auto& i=this->iteratorGet<type_id>(iterators);
+						proc(key,i->second);
+						++i;
 						},eh);
 					++i;
 					}
@@ -83,23 +88,47 @@ namespace Temple
 			static constexpr auto type_last=Type::COMPOUND;
 			static constexpr auto type_first=Type::I8;
 		
-			template<Type t=type_last,bool dummy=1>
+			template<Type t=previous(type_last),bool dummy=1>
 			struct Data:public Data<previous(t),dummy>
-				{MapType<Key,typename TypeGet<previous(t),StorageModel>::type> content;};
+				{MapType<Key,typename TypeGet<t,StorageModel>::type> content;};
 
 			template<bool dummy>
 			struct Data<type_first,dummy>
-				{};
+				{MapType<Key,typename TypeGet<type_first,StorageModel>::type> content;};
 
 			Data<> m_data;
 			
 			template<Type t>
-			static auto& dataGet(Data<next(t)>& data) noexcept
+			static auto& dataGet(Data<t>& data) noexcept
 				{return data.content;};
 
 			template<Type t>
-			static const auto& dataGet(const Data<next(t)>& data) noexcept
+			static const auto& dataGet(const Data<t>& data) noexcept
 				{return data.content;};
+
+			template<Type t=previous(type_last),bool dummy=1>
+			struct Iterators:public Iterators<previous(t),dummy>
+				{
+				explicit Iterators(Data<t>& data) noexcept:
+					Iterators<previous(t),dummy>(data),m_position(data.content.begin())
+					{}
+				typename MapType<Key,typename TypeGet<t,StorageModel>::type>::iterator m_position;
+				};
+
+			template<bool dummy>
+			struct Iterators<type_first,dummy>
+				{
+				explicit Iterators(Data<type_first>& data) noexcept:
+					m_position(data.content.begin())
+					{}
+				typename MapType<Key,typename TypeGet<type_first,StorageModel>::type>::iterator m_position;
+				};
+
+			template<Type t>
+			static auto& iteratorGet(Iterators<t>& i) noexcept
+				{return i.m_position;}
+
+
 
 			MapType<StringType,Type> m_keys;
 
