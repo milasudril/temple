@@ -166,7 +166,7 @@ namespace Temple
 					}
 
 				ArrayPointer<ExceptionHandler> ret{nullptr,nullptr};
-				for_type<StorageModel,1,2>(type,[&ret,this,&key](auto x)
+				for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret,this,&key](auto x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					static_assert(static_cast<int>(type_id)%2,"Type is not an array");
@@ -187,7 +187,7 @@ namespace Temple
 					return;
 					}
 
-				for_type<StorageModel,0,2>(type,[this,&key,loc,&value,&eh](auto x)
+				for_type<StorageModel,Type::I8,2,Type::STRING>(type,[this,&key,loc,&value,&eh](auto x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					static_assert((static_cast<int>(type_id)%2)==0,"Type is an array");
@@ -203,6 +203,29 @@ namespace Temple
 					{freelocale(m_handle);}
 
 				locale_t m_handle;
+				};
+
+			template<bool compound,class dummy=void>
+			struct ItemProcessTrampoline
+				{
+				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
+				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
+					,ValueTag x)
+					{
+					static constexpr auto type_id=decltype(x)::id;
+					auto& j=iteratorGet<type_id>(iterators);
+					proc(key,x,j->second);
+					++j;
+					}
+				};
+
+			template<class dummy>
+			struct ItemProcessTrampoline<true,dummy>
+				{
+				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
+				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
+					,ValueTag x)
+					{proc(key,x,0);}
 				};
 		};
 	}
@@ -536,18 +559,13 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	while(i!=i_end)
 		{
 		auto& key=i->first;
-		if(arrayUnset(i->second)!=Type::COMPOUND)
+		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
+		(i->second,[&key,&iterators,this,&proc](auto x)
 			{
-			for_type<StorageModel,0,1>(i->second,[&key,&iterators,this,&proc](auto x)
-				{
-				static constexpr auto type_id=decltype(x)::id;
-				auto& j=this->iteratorGet<type_id>(iterators);
-				proc(key,j->second);
-				++j;
-				},eh);
-			}
-		else
-			{proc(key,i->second);}
+			static constexpr auto type_id=decltype(x)::id;
+			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
+				::go(proc,key,iterators,x);
+			},eh);
 		++i;
 		}
 	}

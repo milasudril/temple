@@ -5,6 +5,7 @@
 
 #include "error.hpp"
 #include <cassert>
+#include <type_traits>
 
 namespace Temple
 	{
@@ -94,38 +95,43 @@ namespace Temple
 		typedef typename StorageModel::StringType type;
 		};
 
+	template<class StorageModel>
+	struct TypeGet<Type::COMPOUND,StorageModel>
+		{
+		static constexpr auto id=Type::COMPOUND;
+		typedef void type;
+		};
 
 
-	template<Type t,int x,class StorageModel,class Callback,class ExceptionHandler>
+
+	template<Type t,int x,Type t_end,class StorageModel,class Callback,class ExceptionHandler,bool cont>
 	struct TypeProcess
 		{
 		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
 			{	
 			if(t==type)
-				{cb(TypeGet<t,StorageModel>{});}
+				{
+				cb(TypeGet<t,StorageModel>{});
+				}
 			else
-				{TypeProcess<step(t,x),x,StorageModel,Callback,ExceptionHandler>::doIt(type,cb,eh);}
+				{
+				static constexpr auto t_next=step(t,x);
+				static constexpr bool cont_next=static_cast<int>(t_next) <= static_cast<int>(t_end);
+				TypeProcess<t_next,x,t_end,StorageModel,Callback,ExceptionHandler,cont_next>::doIt(type,cb,eh);
+				}
 			}
 		};
 
-	template<class StorageModel,int step,class Callback,class ExceptionHandler>
-	struct TypeProcess<Type::COMPOUND,step,StorageModel,Callback,ExceptionHandler>
+	template<Type t,int x,Type t_end,class StorageModel,class Callback,class ExceptionHandler>
+	struct TypeProcess<t,x,t_end,StorageModel,Callback,ExceptionHandler,0>
 		{
 		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
 			{eh.raise(Error("Internal error: Type not found."));}
 		};
 
-	template<class StorageModel,int step,class Callback,class ExceptionHandler>
-	struct TypeProcess<next(Type::COMPOUND),step,StorageModel,Callback,ExceptionHandler>
-		{
-		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
-			{eh.raise(Error("Internal error: Type not found."));}
-		};
-
-
-	template<class StorageModel,int start,int x,class Callback,class ExceptionHandler>
+	template<class StorageModel,Type start,int x,Type end,class Callback,class ExceptionHandler>
 	inline void for_type(Type type,Callback&& cb,ExceptionHandler& eh) 
-		{TypeProcess<step(Type::I8,start),x,StorageModel,Callback,ExceptionHandler>::doIt(type,cb,eh);}
+		{TypeProcess<start,x,end,StorageModel,Callback,ExceptionHandler,1>::doIt(type,cb,eh);}
 
 	template<class StringType,class ExceptionHandler>
 	inline Type type(const StringType& str,ExceptionHandler& eh)
