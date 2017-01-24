@@ -3,6 +3,7 @@
 #include "itemtree.hpp"
 #include <cstdio>
 #include <clocale>
+#include <cinttypes>
 
 using namespace Temple;
 
@@ -100,7 +101,7 @@ int main()
 	,"empty array"i32:[]
 	}
 ,"bar":{"baz"i64:124380867045036}
-,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:1,"bar"i32:2}]}]
+,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:"1","bar"i32:2}]}]
 ,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
 })EOF";
 
@@ -110,11 +111,11 @@ int main()
 	try
 		{
 		ItemTree<> tree(Reader{src},m);
-		tree.itemsProcess(Proc{});
+		tree.itemsProcess(Proc{},m);
 		}
 	catch(const Temple::Error& error)
 		{
-		fprintf(stderr,"%llu:%llu: %s\n",m.line(),m.col(),error.message());
+		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
 		}
 	return 0;
 	}

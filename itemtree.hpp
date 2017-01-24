@@ -52,34 +52,19 @@ namespace Temple
 			template<class Reader,class ProgressMonitor>
 			ItemTree& load(Reader& reader,ProgressMonitor& monitor);
 
-			template<class ItemProcessor>
-			void itemsProcess(ItemProcessor&& proc)
+			template<class ItemProcessor,class ExceptionHandler>
+			void itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh)
 				{
 				auto i=m_keys.begin();
 				auto i_end=m_keys.end();
 				while(i!=i_end)
 					{
-					printf("%s\n",i->first.c_str());
-				/*	auto index=i->second;
-					auto type=static_cast<Type>(index/2);
-					switch(type)
+					auto& key=i->first;
+					for_type<StorageModel,0,1>(i->second,[&key,this,&proc](auto x)
 						{
-						case Type::I8:
-							proc(i->first,mapGet<Type::I8>().find(i->first)->second);
-							break;
-						case Type::I16:
-							proc(i->first,mapGet<Type::I16>().find(i->first)->second);
-							break;
-						case Type::I32:
-							proc(i->first,mapGet<Type::I32>().find(i->first)->second);
-							break;
-						case Type::I64:
-							proc(i->first,mapGet<Type::I64>().find(i->first)->second);
-							break;
-						case Type::FLOAT:
-							proc(i->first,mapGet<Type::FLOAT>().find(i->first)->second);
-							break;
-						}*/
+						static constexpr auto type_id=decltype(x)::id;
+						proc(key,this->dataGet<type_id>().find(key)->second);
+						},eh);
 					++i;
 					}
 				}
@@ -123,7 +108,7 @@ namespace Temple
 				{return reinterpret_cast<ArrayType<T>*>(array_pointer);}
 
 			template<class T,class ExceptionHandler>
-			static void array_append(void* array_pointer,const std::string& value
+			static void array_append(void* array_pointer,const StringType& value
 				,locale_t loc,ExceptionHandler& eh)
 				{get<T>(array_pointer)->push_back(convert<T>(value,loc,eh));}
 
@@ -131,11 +116,11 @@ namespace Temple
 			struct ArrayPointer
 				{
 				void* m_object;
-				void (*append)(void* object,const std::string& value,locale_t loc,ExceptionHandler& eh);
+				void (*append)(void* object,const StringType& value,locale_t loc,ExceptionHandler& eh);
 				};	
 
 			template<class ExceptionHandler>
-			ArrayPointer<ExceptionHandler> arrayGet(Type type,const StringType& key,ExceptionHandler& eh)
+			ArrayPointer<ExceptionHandler> arrayGet(Type type,const Key& key,ExceptionHandler& eh)
 				{
 				type=arraySet(type);
 				auto ip=m_keys.insert({key,type});
@@ -247,8 +232,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 				switch(ch_in)
 					{
 					case '{':
-						monitor.raise(Error("Anonymous compound has been opened, but current object has "
-							"been declared as '",type(node_current.type,monitor),'\''));
+						monitor.raise(Error("A compound has been opened, but current object has "
+							"been declared as '",type(node_current.type),'\''));
 						return *this;
 					case '[':
 						state_current=State::ARRAY;

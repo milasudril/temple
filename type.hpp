@@ -4,6 +4,7 @@
 #define TEMPLE_TYPE_HPP
 
 #include "error.hpp"
+#include <cassert>
 
 namespace Temple
 	{
@@ -149,10 +150,9 @@ namespace Temple
 		return Type::COMPOUND;
 		}
 
-	template<class ExceptionHandler>
-	inline const char* type(Type type,ExceptionHandler& eh)
+	inline const char* type(Type type)
 		{
-		switch(type)
+		switch(arrayUnset(type))
 			{
 			case Type::I8:
 				return "i8";
@@ -171,10 +171,10 @@ namespace Temple
 			case Type::COMPOUND:
 				return "";
 			default:
-				eh.raise(Error("Internal error: invalid value type."));
+				assert(1!=1);
 				return nullptr;
 			}
-		eh.raise(Error("Internal error: invalid value type."));
+		assert(1!=1);
 		return nullptr;
 		}
 	}
