@@ -117,7 +117,7 @@ int main()
 
 		tree.itemsProcess(Proc{},m);
 		
-	//	tree.store(stdout,m);
+		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{

@@ -59,7 +59,7 @@ namespace Temple
 			void store(Sink& sink,ExceptionHandler& eh)
 				{
 				StringType path_prev;
-				itemsProcess([this,&sink,&path_prev](const auto& key,const auto& value)
+				itemsProcess([this,&sink,&path_prev](const auto& key,auto tag,const auto& value)
 					{
 					auto path_end=this->rfind(key,'/');
 					if(path_end!=key.end())

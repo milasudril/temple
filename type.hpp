@@ -104,9 +104,10 @@ namespace Temple
 
 
 
-	template<Type t,int x,Type t_end,class StorageModel,class Callback,class ExceptionHandler,bool cont>
+	template<Type t,int x,Type t_end,class StorageModel,bool cont>
 	struct TypeProcess
 		{
+		template<class Callback,class ExceptionHandler>
 		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
 			{	
 			if(t==type)
@@ -117,21 +118,22 @@ namespace Temple
 				{
 				static constexpr auto t_next=step(t,x);
 				static constexpr bool cont_next=static_cast<int>(t_next) <= static_cast<int>(t_end);
-				TypeProcess<t_next,x,t_end,StorageModel,Callback,ExceptionHandler,cont_next>::doIt(type,cb,eh);
+				TypeProcess<t_next,x,t_end,StorageModel,cont_next>::doIt(type,cb,eh);
 				}
 			}
 		};
 
-	template<Type t,int x,Type t_end,class StorageModel,class Callback,class ExceptionHandler>
-	struct TypeProcess<t,x,t_end,StorageModel,Callback,ExceptionHandler,0>
+	template<Type t,int x,Type t_end,class StorageModel>
+	struct TypeProcess<t,x,t_end,StorageModel,0>
 		{
+		template<class Callback,class ExceptionHandler>
 		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
 			{eh.raise(Error("Internal error: Type not found."));}
 		};
 
 	template<class StorageModel,Type start,int x,Type end,class Callback,class ExceptionHandler>
 	inline void for_type(Type type,Callback&& cb,ExceptionHandler& eh) 
-		{TypeProcess<start,x,end,StorageModel,Callback,ExceptionHandler,1>::doIt(type,cb,eh);}
+		{TypeProcess<start,x,end,StorageModel,1>::doIt(type,cb,eh);}
 
 	template<class StringType,class ExceptionHandler>
 	inline Type type(const StringType& str,ExceptionHandler& eh)
