@@ -41,37 +41,30 @@ namespace Temple
 
 			using BufferType=typename StorageModel::BufferType;
 
-			template<class Reader,class ProgressMonitor>
-			ItemTree(Reader&& reader,ProgressMonitor&& monitor)
-				{load(reader,monitor);}
+			template<class Source,class ProgressMonitor>
+			ItemTree(Source&& src,ProgressMonitor&& monitor)
+				{load(src,monitor);}
 
-			template<class Reader,class ProgressMonitor>
-			ItemTree& load(Reader&& reader,ProgressMonitor& monitor)
-				{return load(reader,monitor);}
+			template<class Source,class ProgressMonitor>
+			ItemTree& load(Source&& src,ProgressMonitor& monitor)
+				{return load(src,monitor);}
 
-			template<class Reader,class ProgressMonitor>
-			ItemTree& load(Reader& reader,ProgressMonitor& monitor);
+			template<class Source,class ProgressMonitor>
+			ItemTree& load(Source& src,ProgressMonitor& monitor);
 
 			template<class ItemProcessor,class ExceptionHandler>
-			void itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh)
+			void itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh);
+
+			template<class Sink,class ExceptionHandler>
+			void store(Sink& sink,ExceptionHandler& eh)
 				{
-				auto i=m_keys.begin();
-				auto i_end=m_keys.end();
-
-				Iterators<> iterators(m_data);
-
-				while(i!=i_end)
+				StringType path_prev;
+				itemsProcess([this,&sink,&path_prev](const auto& key,const auto& value)
 					{
-					auto& key=i->first;
-					for_type<StorageModel,0,1>(i->second,[&key,&iterators,this,&proc](auto x)
-						{
-						static constexpr auto type_id=decltype(x)::id;
-						auto& i=this->iteratorGet<type_id>(iterators);
-						proc(key,i->second);
-						++i;
-						},eh);
-					++i;
-					}
+					auto path_end=this->rfind(key,'/');
+					if(path_end!=key.end())
+						{fprintf(sink,"%s\n",&(*(path_end+1)));}
+					},eh);
 				}
 
 			template<Type t>
@@ -84,6 +77,19 @@ namespace Temple
 
 		private:
 			using Key=StringType;
+
+			static auto rfind(const StringType& str,typename StringType::value_type ch) noexcept
+				{
+				auto begin=str.begin();
+				auto end=str.end();
+				while(end!=begin)
+					{
+					--end;
+					if(*end==ch)
+						{return end;}
+					}
+				return str.end();
+				}
 
 			static constexpr auto type_last=Type::COMPOUND;
 			static constexpr auto type_first=Type::I8;
@@ -202,8 +208,8 @@ namespace Temple
 	}
 
 template<class StorageModel>
-template<class Reader,class ProgressMonitor>
-Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& reader,ProgressMonitor& monitor)
+template<class Source,class ProgressMonitor>
+Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src,ProgressMonitor& monitor)
 	{
 /* Syntax example:
 {
@@ -244,10 +250,10 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 //	Do not call feof, since that function expects that the caller
 //	has tried to read data first. This is not compatible with a 
 //	C-style string
-	while(!eof(reader))
+	while(!eof(src))
 		{
 	//	Likewise, fgetc does not work.
-		auto ch_in=codepointGet(reader);
+		auto ch_in=codepointGet(src);
 		if(ch_in=='\n')
 			{
 			++line_count;
@@ -289,11 +295,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 						node_current.array=0;
 						node_current.item_count=0;
 						nodes.push(node_current);
+						m_keys[node_current.key]=Type::COMPOUND;
 						state_current=State::KEY_BEGIN;
 						break;
 					case '[':
 						node_current.array=1;
 						nodes.push(node_current);
+						m_keys[node_current.key]=Type::COMPOUND_ARRAY;
 						state_current=State::COMPOUND_BEGIN;
 						break;
 					case ']':
@@ -514,6 +522,34 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Reader& rea
 	if(nodes.size())
 		{monitor.raise(Error("Unterminated block at EOF."));}
 	return *this;
+	}
+
+template<class StorageModel>
+template<class ItemProcessor,class ExceptionHandler>
+void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh)
+	{
+	auto i=m_keys.begin();
+	auto i_end=m_keys.end();
+
+	Iterators<> iterators(m_data);
+
+	while(i!=i_end)
+		{
+		auto& key=i->first;
+		if(arrayUnset(i->second)!=Type::COMPOUND)
+			{
+			for_type<StorageModel,0,1>(i->second,[&key,&iterators,this,&proc](auto x)
+				{
+				static constexpr auto type_id=decltype(x)::id;
+				auto& j=this->iteratorGet<type_id>(iterators);
+				proc(key,j->second);
+				++j;
+				},eh);
+			}
+		else
+			{proc(key,i->second);}
+		++i;
+		}
 	}
 
 #endif

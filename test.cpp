@@ -40,6 +40,9 @@ class Monitor
 		auto col() noexcept
 			{return m_col;}
 
+		void reset() noexcept
+			{m_line=0;m_col=0;}
+
 	private:
 		uintmax_t m_line;
 		uintmax_t m_col;
@@ -105,13 +108,16 @@ int main()
 ,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
 })EOF";
 
-/*	
-	*/
+
 	Monitor m;
 	try
 		{
 		ItemTree<> tree(Reader{src},m);
+		m.reset();
+
 		tree.itemsProcess(Proc{},m);
+		
+		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{
