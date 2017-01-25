@@ -54,15 +54,16 @@ namespace Temple
 			void store(Sink& sink,ExceptionHandler& eh)
 				{
 				StringType path_prev;
-				itemsProcess([this,&sink,&path_prev](const auto& key,auto tag,const auto& value)
+				itemsProcess([this,&sink,&path_prev,&eh](const auto& key,auto tag,const auto& value)
 					{
-				//	auto path_end=this->rfind(key,'/');
+					auto path_end=this->rfind(key,pathsep());
 					auto level=this->count(key,pathsep());
+					RecordWrite<decltype(tag)::id>::doIt(sink,level,path_end,value,eh);
 				//	RecordWrite<decltype(tag)::id>::write(path_end,value,sink);
 				//	if(path_end!=nullptr)
-						{
-						fprintf(sink,"[%s] %zu\n",key.c_str(),level);
-						}
+				//		{
+				//		fprintf(sink,"[%s] %zu\n",key.c_str(),level);
+				//		}
 					},eh);
 				}
 
@@ -75,6 +76,47 @@ namespace Temple
 				{return dataGet<t>(m_data);}
 
 		private:
+			template<class T>
+			static constexpr bool equals_or(T x)
+				{return 0;}
+
+			template<class T,class ... U>
+			static constexpr bool equals_or(T x,T y,U ... values)
+				{return x==y || equals_or(x,values...);}
+
+			template<class Cstr,class Stream,class... to_escape>
+			static void write(Cstr src,Stream& stream,to_escape ... esc)
+				{
+				while(true)
+					{
+					auto ch_in=*src;
+					if(ch_in=='\0')
+						{return;}
+					if(equals_or(ch_in,esc...))
+						{putc('\\',stream);}
+					putc(ch_in,stream);
+					++src;
+					}
+				}
+
+			template<Type t,class dummy=void>
+			struct RecordWrite
+				{
+				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+					{
+					if(key!=nullptr)
+						{
+						assert(level!=0);
+						for(size_t k=0;k<level-1;++k)
+							{putc('\t',sink);}
+						putc('"',sink);
+						write(key,sink,'"');
+						fprintf(sink,"\":\n");
+						}
+					}
+				};
+
 			using Key=StringType;
 
 			template<class KeyType,class Value>
@@ -545,7 +587,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 				break;
 
 			case State::ESCAPE:
-				if(state_old==State::KEY && (ch_in=='/' || ch_in=='#'))
+				if(state_old==State::KEY && ch_in==pathsep())
 					{
 					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
 					return *this;

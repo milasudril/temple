@@ -106,6 +106,7 @@ int main()
 ,"bar":{"baz"i64:124380867045036}
 ,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:"1","bar"i32:2}]}]
 ,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
+,"\"quotation marks\" in \"key\""i32:1234
 })EOF";
 
 
