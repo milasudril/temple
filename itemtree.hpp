@@ -105,17 +105,54 @@ namespace Temple
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
 				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
 					{
+					assert(key!=nullptr);
+					assert(level!=0);
+					for(size_t k=0;k<level-1;++k)
+						{putc('\t',sink);}
+					putc('"',sink);
+					write(key,sink,'"');
+					fprintf(sink,"\"%s:\n",type(t));
+				//	write(value,sink);
+					}
+				};
+
+			template<class dummy>
+			struct RecordWrite<Type::COMPOUND,dummy>
+				{
+				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+					{
 					if(key!=nullptr)
-						{
+						{						
 						assert(level!=0);
 						for(size_t k=0;k<level-1;++k)
 							{putc('\t',sink);}
 						putc('"',sink);
 						write(key,sink,'"');
-						fprintf(sink,"\":\n");
+						fputs("\":\n",sink);
 						}
 					}
 				};
+
+			template<class dummy>
+			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
+				{
+				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+					{
+					if(key!=nullptr)
+						{						
+						assert(level!=0);
+						for(size_t k=0;k<level-1;++k)
+							{putc('\t',sink);}
+						putc('"',sink);
+						write(key,sink,'"');
+						fputs("\":\n",sink);
+						}
+					}
+				};
+
+
 
 			using Key=StringType;
 
