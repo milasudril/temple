@@ -107,7 +107,7 @@ namespace Temple
 			static void write(const StringType& value,Sink& sink)
 				{
 				putc('"',sink);
-				write(value.c_str(),sink,'"');
+				write(value.c_str(),sink,'"','\\');
 				putc('"',sink);
 				}
 
