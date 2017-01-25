@@ -48,49 +48,6 @@ class Monitor
 		uintmax_t m_col;
 	};
 
-template<class T>
-void print(const T& val)
-	{printf("%d",val);}
-
-void print(const std::string& val)
-	{printf("\"%s\"",val.c_str());}
-
-void print(double val)
-	{printf("%.15g",val);}
-
-void print(float val)
-	{printf("%.7g",val);}
-
-void print(int64_t val)
-	{printf("%lld",val);}
-
-struct Proc
-	{
-	template<class Tag,class T>
-	void operator()(const ItemTree<BasicStorage>::Key& key,Tag x,const T& val)
-		{
-		printf("\"%s\":",key.c_str());
-		print(val);
-		putchar('\n');
-		}
-
-	template<class Tag,class T>
-	void operator()(const ItemTree<BasicStorage>::Key& key,Tag x,const std::vector<T>& val)
-		{
-		printf("\"%s\":[",key.c_str());
-		auto ptr=val.data();
-		auto ptr_end=ptr + val.size();
-		while(ptr!=ptr_end)
-			{
-			print(*ptr);
-			++ptr;
-			if(ptr!=ptr_end)
-				{putchar(',');}
-			}
-		puts("]");
-		}
-	};
-
 int main()
 	{
 	setlocale(LC_ALL,"");
@@ -114,10 +71,7 @@ int main()
 	try
 		{
 		ItemTree<> tree(Reader{src},m);
-		m.reset();
-
-		tree.itemsProcess(Proc{},m);
-		
+		m.reset();		
 		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)

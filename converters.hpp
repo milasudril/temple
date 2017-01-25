@@ -9,6 +9,11 @@
 #include <cstdlib>
 #include <cerrno>
 #include <locale.h>
+#include <cmath>
+#include <limits>
+#include <cinttypes>
+#include <cstdio>
+#include <type_traits>
 
 namespace Temple
 	{
@@ -76,7 +81,7 @@ namespace Temple
 		}
 
 
-//	Different converters
+//	String to number converters
 
 	template<class T>
 	struct Converter
@@ -159,11 +164,50 @@ namespace Temple
 			{return strtod(value,loc,eh);}
 		};
 
+
 //	Wrapper function
 
 	template<class T,class StringType,class ExceptionHandler>
 	T convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
 		{return Converter<T>::convert(value,loc,eh);}
+
+
+//	Helper for counting digits
+	template<class T>
+	static constexpr size_t digits() noexcept
+		{return static_cast<size_t>( std::log10( std::numeric_limits<T>::max() ) ) + 1;}
+
+
+//	Number to string conversion
+
+	template<class StringType>
+	const StringType& convert(const StringType& str)
+		{return str;}
+
+	template<class StringType,class Integer>
+	std::enable_if_t<std::is_integral<Integer>::value,StringType>
+	convert(Integer i)
+		{
+		char buffer[digits<Integer>() + 2]; //Sign + nul character
+		sprintf(buffer,"%" PRIdMAX ,static_cast<intmax_t>(i));
+		return StringType(buffer);
+		}
+
+	template<class StringType>
+	StringType convert(float x)
+		{
+		char buffer[16];
+		sprintf(buffer,"%.9g",x);
+		return StringType(buffer);
+		}
+
+	template<class StringType>
+	StringType convert(double x)
+		{
+		char buffer[24];
+		sprintf(buffer,"%.17g",x);
+		return StringType(buffer);
+		}
 	}
 
 #endif

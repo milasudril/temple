@@ -54,16 +54,12 @@ namespace Temple
 			void store(Sink& sink,ExceptionHandler& eh)
 				{
 				StringType path_prev;
+				Locale loc;
 				itemsProcess([this,&sink,&path_prev,&eh](const auto& key,auto tag,const auto& value)
 					{
 					auto path_end=this->rfind(key,pathsep());
 					auto level=this->count(key,pathsep());
 					RecordWrite<decltype(tag)::id>::doIt(sink,level,path_end,value,eh);
-				//	RecordWrite<decltype(tag)::id>::write(path_end,value,sink);
-				//	if(path_end!=nullptr)
-				//		{
-				//		fprintf(sink,"[%s] %zu\n",key.c_str(),level);
-				//		}
 					},eh);
 				}
 
@@ -84,8 +80,8 @@ namespace Temple
 			static constexpr bool equals_or(T x,T y,U ... values)
 				{return x==y || equals_or(x,values...);}
 
-			template<class Cstr,class Stream,class... to_escape>
-			static void write(Cstr src,Stream& stream,to_escape ... esc)
+			template<class Cstr,class Sink,class... to_escape>
+			static void write(Cstr src,Sink& sink,to_escape ... esc)
 				{
 				while(true)
 					{
@@ -93,17 +89,54 @@ namespace Temple
 					if(ch_in=='\0')
 						{return;}
 					if(equals_or(ch_in,esc...))
-						{putc('\\',stream);}
-					putc(ch_in,stream);
+						{putc('\\',sink);}
+					putc(ch_in,sink);
 					++src;
 					}
+				}
+
+			template<class T,class Sink>
+			static std::enable_if_t<std::is_arithmetic<T>::value>
+			write(const T& value,Sink& sink)
+				{
+				auto buffer=convert<BufferType>(value);
+				write(buffer.c_str(),sink);
+				}
+
+			template<class Sink>
+			static void write(const StringType& value,Sink& sink)
+				{
+				putc('"',sink);
+				write(value.c_str(),sink,'"');
+				putc('"',sink);
+				}
+
+			template<class T,class Sink>
+			static void write(const ArrayType<T>& values,Sink& sink)
+				{
+				putc('[',sink);
+				auto ptr=values.begin();
+				auto ptr_end=values.end();
+				size_t elem_count=0;
+				while(ptr!=ptr_end)
+					{
+					if(elem_count!=0)
+						{putc(',',sink);}
+					write(*ptr,sink);
+					++elem_count;
+					if(elem_count%16==0)
+						{putc('\n',sink);}
+					++ptr;
+					}
+				putc(']',sink);
 				}
 
 			template<Type t,class dummy=void>
 			struct RecordWrite
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
+					,ExceptionHandler eh)
 					{
 					assert(key!=nullptr);
 					assert(level!=0);
@@ -111,8 +144,9 @@ namespace Temple
 						{putc('\t',sink);}
 					putc('"',sink);
 					write(key,sink,'"');
-					fprintf(sink,"\"%s:\n",type(t));
-				//	write(value,sink);
+					fprintf(sink,"\"%s:",type(t));
+					write(value,sink);
+					putc('\n',sink);
 					}
 				};
 
@@ -120,7 +154,8 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
+					,ExceptionHandler& eh)
 					{
 					if(key!=nullptr)
 						{						
@@ -138,7 +173,8 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value,ExceptionHandler eh)
+				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
+					,ExceptionHandler& eh)
 					{
 					if(key!=nullptr)
 						{						
@@ -294,11 +330,15 @@ namespace Temple
 			struct Locale
 				{
 				Locale():m_handle(newlocale(LC_ALL,"C",0))
-					{}
+					{m_loc_old=uselocale(m_handle);}
 				~Locale()
-					{freelocale(m_handle);}
+					{
+					uselocale(m_loc_old);
+					freelocale(m_handle);
+					}
 
 				locale_t m_handle;
+				locale_t m_loc_old;
 				};
 
 			template<bool compound,class dummy=void>
