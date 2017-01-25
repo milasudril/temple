@@ -51,11 +51,11 @@ namespace Temple
 		}
 
 	template<class StringType,class ExceptionHandler>
-	float strtof(const StringType& str,locale_t loc,ExceptionHandler& eh)
+	float strtof(const StringType& str,ExceptionHandler& eh)
 		{
 		char* endptr=nullptr;
 		errno=0;
-		auto x=::strtof_l(str.c_str(),&endptr,loc);
+		auto x=::strtof(str.c_str(),&endptr);
 		if(errno==ERANGE)
 			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
 
@@ -66,11 +66,11 @@ namespace Temple
 		}
 
 	template<class StringType,class ExceptionHandler>
-	double strtod(const StringType& str,locale_t loc,ExceptionHandler& eh)
+	double strtod(const StringType& str,ExceptionHandler& eh)
 		{
 		char* endptr=nullptr;
 		errno=0;
-		auto x=::strtod_l(str.c_str(),&endptr,loc);
+		auto x=::strtod(str.c_str(),&endptr);
 		if(errno==ERANGE)
 			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
 
@@ -87,8 +87,7 @@ namespace Temple
 	struct Converter
 		{
 		template<class StringType,class ExceptionHandler>
-		static const StringType& convert(const StringType& value
-			,locale_t loc,ExceptionHandler& eh)
+		static const StringType& convert(const StringType& value,ExceptionHandler& eh)
 			{return value;}
 		};
 
@@ -96,7 +95,7 @@ namespace Temple
 	struct Converter<int8_t>
 		{
 		template<class StringType,class ExceptionHandler>
-		static int8_t convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
+		static int8_t convert(const StringType& value,ExceptionHandler& eh)
 			{
 			auto x=strtol(value,eh);
 			if(x<-128 || x>127)
@@ -112,7 +111,7 @@ namespace Temple
 	struct Converter<int16_t>
 		{
 		template<class StringType,class ExceptionHandler>
-		static int16_t convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
+		static int16_t convert(const StringType& value,ExceptionHandler& eh)
 			{
 			auto x=strtol(value,eh);
 			if(x<-32768 || x>32767)
@@ -128,7 +127,7 @@ namespace Temple
 	struct Converter<int32_t>
 		{
 		template<class StringType,class ExceptionHandler>
-		static int32_t convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
+		static int32_t convert(const StringType& value,ExceptionHandler& eh)
 			{
 			auto x=strtoll(value,eh);
 			if(x<-2147483648 || x>2147483647)
@@ -144,7 +143,7 @@ namespace Temple
 	struct Converter<int64_t>
 		{
 		template<class StringType,class ExceptionHandler>
-		static int64_t convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
+		static int64_t convert(const StringType& value,ExceptionHandler& eh)
 			{return strtoll(value,eh);}
 		};
 
@@ -152,24 +151,24 @@ namespace Temple
 	struct Converter<float>
 		{
 		template<class StringType,class ExceptionHandler>
-		static float convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
-			{return strtof(value,loc,eh);}
+		static float convert(const StringType& value,ExceptionHandler& eh)
+			{return strtof(value,eh);}
 		};
 
 	template<>
 	struct Converter<double>
 		{
 		template<class StringType,class ExceptionHandler>
-		static double convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
-			{return strtod(value,loc,eh);}
+		static double convert(const StringType& value,ExceptionHandler& eh)
+			{return strtod(value,eh);}
 		};
 
 
 //	Wrapper function
 
 	template<class T,class StringType,class ExceptionHandler>
-	T convert(const StringType& value,locale_t loc,ExceptionHandler& eh)
-		{return Converter<T>::convert(value,loc,eh);}
+	T convert(const StringType& value,ExceptionHandler& eh)
+		{return Converter<T>::convert(value,eh);}
 
 
 //	Helper for counting digits

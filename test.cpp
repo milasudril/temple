@@ -52,18 +52,40 @@ int main()
 	{
 	setlocale(LC_ALL,"");
 	const char* src=R"EOF({
-"foo":
+ "\"quotation marks\" in \"key\""i32:1234
+,"bar":
+	{"baz"i64:124380867045036}
+,"compound array":
+	[
+		 {"a key"s:"A value"}
+		,{
+		"a key"s:"A value 2"
+		,"array":
+			[
+				{
+				 "bar"i32:2
+				,"foo"i32:"1"
+				}
+			]
+		 }
+	]
+,"compound array 2":
+	[
+		{"a key"s:"A value"}
+		,{"a key"s:"A value 2"}
+	]
+,"foo":
 	{
-	 "bar"i32:[1,2,3,4]
-	,"a string"s:"Hello, World"
+	 "a string"s:"Hello, World"
 	,"another valid string"s:This\ is\ legal\ too
-	,"more objects":{"foo"s:"bar","value"d:3.14}
+	,"bar"i32:[1,2,3,4]
 	,"empty array"i32:[]
+	,"more objects":
+		{
+		"foo"s:"bar"
+		,"value"d:3.14
+		}
 	}
-,"bar":{"baz"i64:124380867045036}
-,"compound array":[{"a key"s:"A value"},{"a key"s:"A value 2","array":[{"foo"i32:"1","bar"i32:2}]}]
-,"compound array 2":[{"a key"s:"A value"},{"a key"s:"A value 2"}]
-,"\"quotation marks\" in \"key\""i32:1234
 })EOF";
 
 

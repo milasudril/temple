@@ -275,15 +275,14 @@ namespace Temple
 				{return reinterpret_cast<ArrayType<T>*>(array_pointer);}
 
 			template<class T,class ExceptionHandler>
-			static void array_append(void* array_pointer,const StringType& value
-				,locale_t loc,ExceptionHandler& eh)
-				{get<T>(array_pointer)->push_back(convert<T>(value,loc,eh));}
+			static void array_append(void* array_pointer,const StringType& value,ExceptionHandler& eh)
+				{get<T>(array_pointer)->push_back(convert<T>(value,eh));}
 
 			template<class ExceptionHandler>
 			struct ArrayPointer
 				{
 				void* m_object;
-				void (*append)(void* object,const StringType& value,locale_t loc,ExceptionHandler& eh);
+				void (*append)(void* object,const StringType& value,ExceptionHandler& eh);
 				};	
 
 			template<class ExceptionHandler>
@@ -310,7 +309,7 @@ namespace Temple
 				}
 
 			template<class ExceptionHandler>
-			void valueSet(Type type,const Key& key,const StringType& value,locale_t loc,ExceptionHandler& eh)
+			void valueSet(Type type,const Key& key,const StringType& value,ExceptionHandler& eh)
 				{
 				auto ip=m_keys.insert({key,type});
 				if(!ip.second)
@@ -319,11 +318,11 @@ namespace Temple
 					return;
 					}
 
-				for_type<StorageModel,Type::I8,2,Type::STRING>(type,[this,&key,loc,&value,&eh](auto x)
+				for_type<StorageModel,Type::I8,2,Type::STRING>(type,[this,&key,&value,&eh](auto x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					static_assert((static_cast<int>(type_id)%2)==0,"Type is an array");
-					this->dataGet<type_id>()[key]=convert<typename TypeGet<type_id,StorageModel>::type>(value,loc,eh);
+					this->dataGet<type_id>()[key]=convert<typename TypeGet<type_id,StorageModel>::type>(value,eh);
 					},eh);
 				}
 
@@ -544,13 +543,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_current=State::ESCAPE;
 						break;
 					case ',':
-						array_pointer.append(array_pointer.m_object,token_in,loc.m_handle,monitor);
+						array_pointer.append(array_pointer.m_object,token_in,monitor);
 						token_in.clear();
 						break;
 					case ']':
 						if(token_in.size()!=0)
 							{	
-							array_pointer.append(array_pointer.m_object,token_in,loc.m_handle,monitor);
+							array_pointer.append(array_pointer.m_object,token_in,monitor);
 							token_in.clear();
 							}
 						state_current=State::DELIMITER;
@@ -616,13 +615,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						break;
 					case ',':
 						state_current=State::KEY_BEGIN;
-						valueSet(node_current.type,node_current.key,token_in,loc.m_handle,monitor);
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						break;
 					case '}':
 						state_current=State::DELIMITER;
-						valueSet(node_current.type,node_current.key,token_in,loc.m_handle,monitor);
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
 						node_current=nodes.top();
 						nodes.pop();
