@@ -18,12 +18,7 @@ namespace Temple
 		{
 		template<class T>
 		using ArrayType=std::vector<T>;
-
-		template<class Key,class Value>
-		using MapType=std::map<Key,Value>;
-
 		using StringType=std::string;
-
 		using BufferType=std::string;
 		};
 
@@ -34,12 +29,12 @@ namespace Temple
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
 
-			template<class Key,class Value>
-			using MapType=typename StorageModel::template MapType<Key,Value>;
-
 			using StringType=typename StorageModel::StringType;
 
 			using BufferType=typename StorageModel::BufferType;
+
+			static constexpr typename StringType::value_type pathsep() noexcept
+				{return '\001';}
 
 			template<class Source,class ProgressMonitor>
 			ItemTree(Source&& src,ProgressMonitor&& monitor)
@@ -61,9 +56,13 @@ namespace Temple
 				StringType path_prev;
 				itemsProcess([this,&sink,&path_prev](const auto& key,auto tag,const auto& value)
 					{
-					auto path_end=this->rfind(key,'/');
-					if(path_end!=key.end())
-						{fprintf(sink,"%s\n",&(*(path_end+1)));}
+				//	auto path_end=this->rfind(key,'/');
+					auto level=this->count(key,pathsep());
+				//	RecordWrite<decltype(tag)::id>::write(path_end,value,sink);
+				//	if(path_end!=nullptr)
+						{
+						fprintf(sink,"[%s] %zu\n",key.c_str(),level);
+						}
 					},eh);
 				}
 
@@ -78,7 +77,11 @@ namespace Temple
 		private:
 			using Key=StringType;
 
-			static auto rfind(const StringType& str,typename StringType::value_type ch) noexcept
+			template<class KeyType,class Value>
+			using MapType=std::map<KeyType,Value>;
+
+			static const typename StringType::value_type* rfind(const StringType& str
+				,typename StringType::value_type ch) noexcept
 				{
 				auto begin=str.begin();
 				auto end=str.end();
@@ -86,9 +89,23 @@ namespace Temple
 					{
 					--end;
 					if(*end==ch)
-						{return end;}
+						{return &(*end);}
 					}
-				return str.end();
+				return nullptr;
+				}
+
+			static size_t count(const StringType& str,typename StringType::value_type ch) noexcept
+				{
+				auto begin=str.begin();
+				auto end=str.end();
+				size_t n=0;
+				while(end!=begin)
+					{
+					--end;
+					if(*end==ch)
+						{++n;}
+					}
+				return n;
 				}
 
 			static constexpr auto type_last=Type::COMPOUND;
@@ -311,7 +328,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 					case '{':
 						if(nodes.size() && nodes.top().array)
 							{
-							node_current.key+="/#";
+							node_current.key+=pathsep();
 							node_current.key+=std::to_string(node_current.item_count);
 							++nodes.top().item_count;
 							}
@@ -363,14 +380,11 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_old=state_current;
 						state_current=State::ESCAPE;
 						break;
-					case '/':
-						monitor.raise(Error("'/' cannot be used in keys."));
-						return *this;
-					case '#':
-						monitor.raise(Error("'#' cannot be used in keys."));
+					case pathsep():
+						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
 						return *this;
 					case '"':
-						node_current.key+='/';
+						node_current.key+=pathsep();
 						node_current.key+=token_in;
 						state_current=State::TYPE;
 						token_in.clear();
