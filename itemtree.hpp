@@ -11,6 +11,7 @@
 #include <stack>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 
 namespace Temple
 	{
@@ -26,6 +27,9 @@ namespace Temple
 	class ItemTree
 		{
 		public:
+			ItemTree(const ItemTree&)=delete;
+			ItemTree& operator=(const ItemTree&)=delete;
+
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
 
@@ -209,9 +213,16 @@ namespace Temple
 
 
 			using Key=StringType;
+			typedef const typename Key::value_type* KeyPointer;
 
-			template<class KeyType,class Value>
-			using MapType=std::map<KeyType,Value>;
+			struct KeyCompare
+				{
+				bool operator()(KeyPointer a,KeyPointer b) const noexcept
+					{return strcmp(a,b)<0;}
+				};
+
+			template<class KeyType,class Value,class Compare=KeyCompare>
+			using MapType=std::map<KeyType,Value,Compare>;
 
 			static const typename StringType::value_type* rfind(const StringType& str
 				,typename StringType::value_type ch) noexcept
@@ -243,14 +254,20 @@ namespace Temple
 
 			static constexpr auto type_last=Type::COMPOUND;
 			static constexpr auto type_first=Type::I8;
-		
+
 			template<Type t=previous(type_last),bool dummy=1>
 			struct Data:public Data<previous(t),dummy>
-				{MapType<Key,typename TypeGet<t,StorageModel>::type> content;};
+				{
+				Data():content(KeyCompare{}){}
+				MapType<KeyPointer,typename TypeGet<t,StorageModel>::type> content;
+				};
 
 			template<bool dummy>
 			struct Data<type_first,dummy>
-				{MapType<Key,typename TypeGet<type_first,StorageModel>::type> content;};
+				{
+				Data():content(KeyCompare{}){}
+				MapType<KeyPointer,typename TypeGet<type_first,StorageModel>::type> content;
+				};
 
 			Data<> m_data;
 			
@@ -268,7 +285,7 @@ namespace Temple
 				explicit Iterators(Data<t>& data) noexcept:
 					Iterators<previous(t),dummy>(data),m_position(data.content.begin())
 					{}
-				typename MapType<Key,typename TypeGet<t,StorageModel>::type>::iterator m_position;
+				typename MapType<KeyPointer,typename TypeGet<t,StorageModel>::type>::iterator m_position;
 				};
 
 			template<bool dummy>
@@ -277,7 +294,7 @@ namespace Temple
 				explicit Iterators(Data<type_first>& data) noexcept:
 					m_position(data.content.begin())
 					{}
-				typename MapType<Key,typename TypeGet<type_first,StorageModel>::type>::iterator m_position;
+				typename MapType<KeyPointer,typename TypeGet<type_first,StorageModel>::type>::iterator m_position;
 				};
 
 			template<Type t>
@@ -286,7 +303,7 @@ namespace Temple
 
 
 
-			MapType<StringType,Type> m_keys;
+			MapType<StringType,Type, std::less<StringType> > m_keys;
 
 			template<class T>
 			static ArrayType<T>* get(void* array_pointer) noexcept
@@ -315,13 +332,13 @@ namespace Temple
 					}
 
 				ArrayPointer<ExceptionHandler> ret{nullptr,nullptr};
-				for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret,this,&key](auto x)
+				for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret,this,&ip](auto x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					static_assert(static_cast<int>(type_id)%2,"Type is not an array");
 					typedef typename TypeGet<arrayUnset(type_id),StorageModel>::type raw_type;
 					auto callback=this->array_append<raw_type,ExceptionHandler>;
-					ret={&( this->dataGet<type_id>()[key]),callback};
+					ret={&( this->dataGet<type_id>()[ip.first->first.c_str()]),callback};
 					},eh);
 				return ret;
 				}
@@ -336,11 +353,11 @@ namespace Temple
 					return;
 					}
 
-				for_type<StorageModel,Type::I8,2,Type::STRING>(type,[this,&key,&value,&eh](auto x)
+				for_type<StorageModel,Type::I8,2,Type::STRING>(type,[this,&ip,&value,&eh](auto x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					static_assert((static_cast<int>(type_id)%2)==0,"Type is an array");
-					this->dataGet<type_id>()[key]=convert<typename TypeGet<type_id,StorageModel>::type>(value,eh);
+					this->dataGet<type_id>()[ip.first->first.c_str()]=convert<typename TypeGet<type_id,StorageModel>::type>(value,eh);
 					},eh);
 				}
 
