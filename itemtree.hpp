@@ -198,8 +198,10 @@ namespace Temple
 						{
 						putc('"',sink);
 						write(key,sink,'"');
-						fputs("\":[\n",sink);
+						fputs("\":",sink);
 						}
+
+					fputs("[\n",sink);
 					close_symb.push(']');
 					}
 				};
@@ -220,7 +222,7 @@ namespace Temple
 					{
 					--end;
 					if(*end==ch)
-						{return &(*end);}
+						{return &(*(end+1));}
 					}
 				return nullptr;
 				}
