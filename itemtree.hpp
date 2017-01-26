@@ -380,6 +380,13 @@ namespace Temple
 					,ValueTag x)
 					{proc(key,x,0);}
 				};
+
+			BufferType idCreate(size_t index)
+				{
+				char buffer[sizeof(index)*2 + 1];
+				sprintf(buffer,"%016zx",index);
+				return BufferType(buffer);
+				}
 		};
 	}
 
@@ -456,7 +463,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						if(nodes.size() && nodes.top().array)
 							{
 							node_current.key+=pathsep();
-							node_current.key+=std::to_string(node_current.item_count);
+							node_current.key+=idCreate(node_current.item_count);
 							++nodes.top().item_count;
 							}
 						node_current.array=0;
@@ -469,7 +476,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						if(nodes.size() && nodes.top().array)
 							{
 							node_current.key+=pathsep();
-							node_current.key+=std::to_string(node_current.item_count);
+							node_current.key+=idCreate(node_current.item_count);
 							++nodes.top().item_count;
 							}
 						node_current.array=1;
