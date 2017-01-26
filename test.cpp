@@ -51,7 +51,7 @@ class Monitor
 int main()
 	{
 	setlocale(LC_ALL,"");
-	const char* src=R"EOF({
+	const char* src=R"EOF([{
  "\"quotation marks\" in \"key\""i32:1234
 ,"bar":
 	{"baz"i64:124380867045036}
@@ -71,10 +71,7 @@ int main()
 	,"yyy"s:"more stuff"
 	}
 ,"goo":{"key"i32:12456}
-})EOF";
-
-
-/*,"compound array":
+,"compound array":
 	[
 		 {"a key"s:"A value"}
 		,{
@@ -90,9 +87,10 @@ int main()
 	]
 ,"compound array 2":
 	[
-		{"a key"s:"A value"}
+		 {"a key"s:"A value"}
 		,{"a key"s:"A value 2"}
-	]*/
+	]
+},{"property"s:"value"}])EOF";
 
 	Monitor m;
 	try
