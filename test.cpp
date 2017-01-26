@@ -55,7 +55,26 @@ int main()
  "\"quotation marks\" in \"key\""i32:1234
 ,"bar":
 	{"baz"i64:124380867045036}
-,"compound array":
+,"foo":
+	{
+	 "a string"s:"Hello, World"
+	,"another valid string"s:This\ is\ legal\ too
+	,"bar"i32:[1,2,3,4]
+	,"empty array"i32:[]
+	,"more objects":
+		{
+		"foo"s:"bar"
+		,"value"d:3.14
+		,"value as float"f:3.14
+		}
+	,"xxx"s:"more stuff"
+	,"yyy"s:"more stuff"
+	}
+,"goo":{"key"i32:12456}
+})EOF";
+
+
+/*,"compound array":
 	[
 		 {"a key"s:"A value"}
 		,{
@@ -73,21 +92,7 @@ int main()
 	[
 		{"a key"s:"A value"}
 		,{"a key"s:"A value 2"}
-	]
-,"foo":
-	{
-	 "a string"s:"Hello, World"
-	,"another valid string"s:This\ is\ legal\ too
-	,"bar"i32:[1,2,3,4]
-	,"empty array"i32:[]
-	,"more objects":
-		{
-		"foo"s:"bar"
-		,"value"d:3.14
-		}
-	}
-})EOF";
-
+	]*/
 
 	Monitor m;
 	try

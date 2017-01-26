@@ -53,14 +53,33 @@ namespace Temple
 			template<class Sink,class ExceptionHandler>
 			void store(Sink& sink,ExceptionHandler& eh)
 				{
-				StringType path_prev;
 				Locale loc;
-				itemsProcess([this,&sink,&path_prev,&eh](const auto& key,auto tag,const auto& value)
+				size_t level_prev=0;
+				itemsProcess([this,&sink,&level_prev,&eh](const auto& key,auto tag,const auto& value)
 					{
-					auto path_end=this->rfind(key,pathsep());
 					auto level=this->count(key,pathsep());
-					RecordWrite<decltype(tag)::id>::doIt(sink,level,path_end,value,eh);
+					if(level==0)
+						{
+						putc('{',sink);
+						return;
+						}
+					for(size_t k=0;k<level-1;++k)
+						{putc('\t',sink);}
+					while(level<level_prev)
+						{
+						putc('}',sink);
+						--level_prev;
+						}
+					putc(level==level_prev?',':' ',sink);
+					auto path_end=this->rfind(key,pathsep());
+					RecordWrite<decltype(tag)::id>::doIt(level,level_prev,path_end,value,sink,eh);
+					level_prev=level;
 					},eh);
+				while(level_prev!=0)
+					{
+					putc('}',sink);
+					--level_prev;
+					}
 				}
 
 			template<Type t>
@@ -135,13 +154,10 @@ namespace Temple
 			struct RecordWrite
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
-					,ExceptionHandler eh)
+				static void doIt(size_t level,size_t level_prev,KeyCstr key,const Value& value
+					,Sink& sink,ExceptionHandler& eh)
 					{
 					assert(key!=nullptr);
-					assert(level!=0);
-					for(size_t k=0;k<level-1;++k)
-						{putc('\t',sink);}
 					putc('"',sink);
 					write(key,sink,'"');
 					fprintf(sink,"\"%s:",type(t));
@@ -154,17 +170,15 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
-					,ExceptionHandler& eh)
+				static void doIt(size_t level,size_t level_prev,KeyCstr key,const Value& value
+					,Sink& sink,ExceptionHandler& eh)
 					{
 					if(key!=nullptr)
-						{						
-						assert(level!=0);
-						for(size_t k=0;k<level-1;++k)
-							{putc('\t',sink);}
+						{
 						putc('"',sink);
 						write(key,sink,'"');
-						fputs("\":\n",sink);
+						fputs("\":{\n",sink);
+					//	fprintf(sink,"\"(%zu,%zu):{\n",level,prev_old);
 						}
 					}
 				};
@@ -173,9 +187,15 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(Sink& sink,size_t level,KeyCstr key,const Value& value
-					,ExceptionHandler& eh)
+				static void doIt(size_t level,size_t level_prev,KeyCstr key,const Value& value
+					,Sink& sink,ExceptionHandler& eh)
 					{
+					auto prev_old=level_prev;
+					while(level<level_prev)
+						{
+						putc('}',sink);
+						--level_prev;
+						}
 					if(key!=nullptr)
 						{						
 						assert(level!=0);
@@ -183,7 +203,7 @@ namespace Temple
 							{putc('\t',sink);}
 						putc('"',sink);
 						write(key,sink,'"');
-						fputs("\":\n",sink);
+						fprintf(sink,"\"(%zu,%zu):{\n",level,prev_old);
 						}
 					}
 				};
