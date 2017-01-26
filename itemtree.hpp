@@ -382,15 +382,6 @@ template<class StorageModel>
 template<class Source,class ProgressMonitor>
 Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src,ProgressMonitor& monitor)
 	{
-/* Syntax example:
-{
-"foo":
-{
- "bar"i32:[1,2,3]
-,"string"s:"Hello, World"
-}
-}
-*/
 	enum class State:int
 		{
 		 KEY,ESCAPE,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
@@ -470,6 +461,12 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_current=State::KEY_BEGIN;
 						break;
 					case '[':
+						if(nodes.size() && nodes.top().array)
+							{
+							node_current.key+=pathsep();
+							node_current.key+=std::to_string(node_current.item_count);
+							++nodes.top().item_count;
+							}
 						node_current.array=1;
 						nodes.push(node_current);
 						m_keys[node_current.key]=Type::COMPOUND_ARRAY;

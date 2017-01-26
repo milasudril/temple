@@ -51,7 +51,7 @@ class Monitor
 int main()
 	{
 	setlocale(LC_ALL,"");
-	const char* src=R"EOF([{
+/*	const char* src=R"EOF([{
  "\"quotation marks\" in \"key\""i32:1234
 ,"bar":
 	{"baz"i64:124380867045036}
@@ -84,18 +84,19 @@ int main()
 				}
 			]
 		 }
+		,[{"foo"s:"bar"},{"foo"s:"bar2"}]
 	]
 ,"compound array 2":
 	[
 		 {"a key"s:"A value"}
 		,{"a key"s:"A value 2"}
 	]
-},{"property"s:"value"}])EOF";
+},{"property"s:"value"}])EOF";*/
 
 	Monitor m;
 	try
 		{
-		ItemTree<> tree(Reader{src},m);
+		ItemTree<> tree(Reader{"{\"values\":[[{\"index\"i32:1},{\"index\"i32:2}],[{\"index1\"i32:3},{\"index1\"i32:4}]]}"},m);
 		m.reset();		
 		tree.store(stdout,m);
 		}
