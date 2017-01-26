@@ -96,7 +96,7 @@ int main()
 	Monitor m;
 	try
 		{
-		ItemTree<> tree(Reader{"{\"values\":[[{\"index\"i32:1},{\"index\"i32:2}],[{\"index1\"i32:3},{\"index1\"i32:4}]]}"},m);
+		ItemTree<> tree(Reader{"[[{\"index\"i32:1},{\"index\"i32:2}],[{\"index1\"i32:3},{\"index1\"i32:4}]]"},m);
 		m.reset();		
 		tree.store(stdout,m);
 		}

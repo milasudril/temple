@@ -194,9 +194,12 @@ namespace Temple
 				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink,ExceptionHandler& eh)
 					{
 					assert(key!=nullptr);
-					putc('"',sink);
-					write(key,sink,'"');
-					fputs("\":[\n",sink);
+					if(close_symb.top()=='}')
+						{
+						putc('"',sink);
+						write(key,sink,'"');
+						fputs("\":[\n",sink);
+						}
 					close_symb.push(']');
 					}
 				};
