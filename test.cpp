@@ -12,15 +12,14 @@ struct Reader
 	const char* r_src;
 	};
 
-char codepointGet(Reader& reader)
+inline bool read(Reader& reader,char& ch_in) noexcept 
 	{
-	auto v=*(reader.r_src);
+	ch_in=*reader.r_src;
+	if(ch_in=='\0')
+		{return 0;}
 	++reader.r_src;
-	return v;
+	return 1;
 	}
-
-bool eof(Reader& reader)
-	{return *reader.r_src==0;}
 
 class Monitor
 	{

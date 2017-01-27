@@ -439,12 +439,11 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 	
 
 //	Do not call feof, since that function expects that the caller
-//	has tried to read data first. This is not compatible with a 
-//	C-style string
-	while(!eof(src))
+//	has tried to read data first. This is not compatible with API:s 
+//	that have UB when trying to read at EOF.
+	typename BufferType::value_type ch_in;
+	while(read(src,ch_in))
 		{
-	//	Likewise, fgetc does not work.
-		auto ch_in=codepointGet(src);
 		if(ch_in=='\n')
 			{
 			++line_count;
