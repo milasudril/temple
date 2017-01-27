@@ -4,7 +4,7 @@
 #define TEMPLE_TYPE_HPP
 
 #include "error.hpp"
-//#include "stringconst.hpp"
+#include "stringconst.hpp"
 #include <cassert>
 #include <type_traits>
 
@@ -42,16 +42,21 @@ namespace Temple
 
 
 	template<Type t,class StorageModel>
-	struct TypeGet:private TypeGet<arrayUnset(t),StorageModel>
+	struct TypeGet
 		{
 		typedef typename TypeGet<arrayUnset(t),StorageModel>::type BaseType;
 		static constexpr auto id=t;
 		typedef typename StorageModel::template ArrayType<BaseType> type;
 
+		typedef decltype(TypeGet<arrayUnset(id),StorageModel>::name.append(" array")) X;
 
-/*		static constexpr auto name_buffer=concat(TypeGet<arrayUnset(t),StorageModel>::name," array");
-		static constexpr const char* name=name_buffer.begin();*/
+		static constexpr X name=TypeGet<arrayUnset(id),StorageModel>::name.append(" array");
 		};
+
+	template<Type t,class StorageModel>
+	constexpr typename TypeGet<t,StorageModel>::X TypeGet<t,StorageModel>::name;
+
+
 
 	template<class T,class StorageModel>
 	struct IdGet
@@ -67,6 +72,8 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I8;
 		typedef int8_t type;
+		typedef decltype(stringconst("i8")) X;
+		static constexpr X name=stringconst("i8");
 		};
 
 	template<class StorageModel>
@@ -82,7 +89,9 @@ namespace Temple
 	struct TypeGet<Type::I16,StorageModel>
 		{
 		static constexpr auto id=Type::I16;
-		typedef int8_t type;
+		typedef int16_t type;
+		typedef decltype(stringconst("i16")) X;
+		static constexpr auto name=stringconst("i16");
 		};
 
 	template<class StorageModel>
@@ -99,7 +108,12 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I32;
 		typedef int32_t type;
+		typedef decltype(stringconst("i32")) X;
+		static constexpr X name=stringconst("i32");
 		};
+
+	template<class StorageModel>
+	constexpr typename TypeGet<Type::I32,StorageModel>::X TypeGet<Type::I32,StorageModel>::name;
 
 	template<class StorageModel>
 	struct IdGet<int32_t,StorageModel>
@@ -108,13 +122,15 @@ namespace Temple
 		typedef int32_t type;
 		};
 
-
+	
 
 	template<class StorageModel>
 	struct TypeGet<Type::I64,StorageModel>
 		{
 		static constexpr auto id=Type::I64;
 		typedef int64_t type;
+		typedef decltype(stringconst("i64")) X;
+		static constexpr auto name=stringconst("i64");
 		};
 
 	template<class StorageModel>
@@ -131,6 +147,8 @@ namespace Temple
 		{
 		static constexpr auto id=Type::FLOAT;
 		typedef float type;
+		typedef decltype(stringconst("float")) X;
+		static constexpr auto name=stringconst("float");
 		};
 
 	template<class StorageModel>
@@ -147,6 +165,8 @@ namespace Temple
 		{
 		static constexpr auto id=Type::DOUBLE;
 		typedef double type;
+		typedef decltype(stringconst("double")) X;
+		static constexpr auto name=stringconst("double");
 		};
 
 	template<class StorageModel>
@@ -163,6 +183,7 @@ namespace Temple
 		{
 		static constexpr auto id=Type::STRING;
 		typedef typename StorageModel::StringType type;
+		static constexpr auto name=stringconst("s");
 		};
 
 	template<class StorageModel>
@@ -179,6 +200,7 @@ namespace Temple
 		{
 		static constexpr auto id=Type::COMPOUND;
 		typedef void type;
+		static constexpr auto name=stringconst("");
 		};
 
 

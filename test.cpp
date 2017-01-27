@@ -1,6 +1,8 @@
 //@	{"targets":[{"name":"test","type":"application"}]}
 
 #include "itemtree.hpp"
+#include "stringconst.hpp"
+#include "pathconst.hpp"
 #include <cstdio>
 #include <clocale>
 #include <cinttypes>
@@ -46,6 +48,10 @@ class Monitor
 		uintmax_t m_line;
 		uintmax_t m_col;
 	};
+
+void test(std::vector<int32_t>& v)
+	{
+	}
 
 int main()
 	{
@@ -96,7 +102,10 @@ int main()
 	try
 		{
 		ItemTree<> tree(Reader{src},m);
-		m.reset();		
+		m.reset();
+
+		static constexpr auto path=Temple::make_path('\001',"0000000000000000","foo","bar");
+		test( tree.find< Temple::ItemTree<>::ArrayType<int32_t> >(path.c_str(),m) );
 		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)

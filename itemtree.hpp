@@ -96,6 +96,20 @@ namespace Temple
 					}
 				}
 
+			template<class T,class ExceptionHandler>
+			T& find(KeyPointer key,ExceptionHandler&& eh) 
+				{
+				static constexpr auto id=IdGet<T,StorageModel>::id;
+				auto& data=dataGet<id>();
+				auto i=data.find(key);
+				if(i==data.end())
+					{
+					eh.raise(Error("Key «",key,"» does not correspond to any ",TypeGet<id,StorageModel>::name.c_str(),"."));
+					}
+				return i->second;
+				}
+				
+
 		private:
 			template<Type t>
 			auto& dataGet() noexcept
