@@ -57,8 +57,11 @@ namespace Temple
 			template<class ItemProcessor,class ExceptionHandler>
 			void itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh);
 
+			template<class ItemProcessor,class ExceptionHandler>
+			void itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh) const;
+
 			template<class Sink,class ExceptionHandler>
-			void store(Sink& sink,ExceptionHandler& eh)
+			void store(Sink& sink,ExceptionHandler& eh) const 
 				{
 				Locale loc;
 				size_t level_prev=0;
@@ -295,8 +298,30 @@ namespace Temple
 				typename MapType<KeyPointer,typename TypeGet<type_first,StorageModel>::type>::iterator m_position;
 				};
 
+			template<Type t=previous(type_last),bool dummy=1>
+			struct IteratorsConst:public IteratorsConst<previous(t),dummy>
+				{
+				explicit IteratorsConst(const Data<t>& data) noexcept:
+					IteratorsConst<previous(t),dummy>(data),m_position(data.content.begin())
+					{}
+				typename MapType<KeyPointer,typename TypeGet<t,StorageModel>::type>::const_iterator m_position;
+				};
+
+			template<bool dummy>
+			struct IteratorsConst<type_first,dummy>
+				{
+				explicit IteratorsConst(const Data<type_first>& data) noexcept:
+					m_position(data.content.begin())
+					{}
+				typename MapType<KeyPointer,typename TypeGet<type_first,StorageModel>::type>::const_iterator m_position;
+				};
+
 			template<Type t>
 			static auto& iteratorGet(Iterators<t>& i) noexcept
+				{return i.m_position;}
+
+			template<Type t>
+			static auto& iteratorGet(IteratorsConst<t>& i) noexcept
 				{return i.m_position;}
 
 
@@ -723,6 +748,29 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	auto i_end=m_keys.end();
 
 	Iterators<> iterators(m_data);
+
+	while(i!=i_end)
+		{
+		auto& key=i->first;
+		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
+		(i->second,[&key,&iterators,this,&proc](auto x)
+			{
+			static constexpr auto type_id=decltype(x)::id;
+			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
+				::go(proc,key,iterators,x);
+			},eh);
+		++i;
+		}
+	}
+
+template<class StorageModel>
+template<class ItemProcessor,class ExceptionHandler>
+void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,ExceptionHandler&& eh) const
+	{
+	auto i=m_keys.begin();
+	auto i_end=m_keys.end();
+
+	IteratorsConst<> iterators(m_data);
 
 	while(i!=i_end)
 		{
