@@ -27,9 +27,6 @@ namespace Temple
 	class ItemTree
 		{
 		public:
-			ItemTree(const ItemTree&)=delete;
-			ItemTree& operator=(const ItemTree&)=delete;
-
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
 
@@ -37,8 +34,22 @@ namespace Temple
 
 			using BufferType=typename StorageModel::BufferType;
 
+			using Key=StringType;
+			using KeyPointer=const typename Key::value_type*;
+
 			static constexpr typename StringType::value_type pathsep() noexcept
 				{return '\001';}
+
+			class Path
+				{
+				public:
+					Path(KeyPointer ptr);
+				};
+
+
+
+			ItemTree(const ItemTree&)=delete;
+			ItemTree& operator=(const ItemTree&)=delete;
 
 			template<class Source,class ProgressMonitor>
 			ItemTree(Source&& src,ProgressMonitor&& monitor)
@@ -90,6 +101,7 @@ namespace Temple
 					}
 				}
 
+		private:
 			template<Type t>
 			auto& dataGet() noexcept
 				{return dataGet<t>(m_data);}
@@ -98,7 +110,6 @@ namespace Temple
 			const auto& dataGet() const noexcept
 				{return dataGet<t>(m_data);}
 
-		private:
 			template<class T>
 			static constexpr bool equals_or(T x)
 				{return 0;}
@@ -209,11 +220,6 @@ namespace Temple
 					close_symb.push(']');
 					}
 				};
-
-
-
-			using Key=StringType;
-			typedef const typename Key::value_type* KeyPointer;
 
 			struct KeyCompare
 				{
