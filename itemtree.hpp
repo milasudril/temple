@@ -40,14 +40,6 @@ namespace Temple
 			static constexpr typename StringType::value_type pathsep() noexcept
 				{return '\001';}
 
-			class Path
-				{
-				public:
-					Path(KeyPointer ptr);
-				};
-
-
-
 			ItemTree(const ItemTree&)=delete;
 			ItemTree& operator=(const ItemTree&)=delete;
 
