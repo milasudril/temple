@@ -124,10 +124,9 @@ namespace Temple
 			template<class T,class KeyType>
 			bool insert(T&& value,const KeyType& key)
 				{
-				auto path_end=this->rfind(key.begin(),key.end(),pathsep());
+				auto path_end=rfind(key.begin(),key.end(),pathsep());
 				assert(path_end!=nullptr);
 				auto compound=Key(key.begin(),(path_end - 1) - key.begin());
-
 				auto i=m_keys.find(compound);
 				if(i==m_keys.end())
 					{return 0;}
@@ -147,6 +146,44 @@ namespace Temple
 				{
 				T copy(value);
 				return insert(std::move(copy),key);
+				}
+
+			template<class KeyType>
+			bool compoundInsert(const KeyType& name,bool array)
+				{
+				auto path_end=rfind(name.begin(),name.end(),pathsep());
+				assert(path_end!=nullptr);
+				auto parent=Key(name.begin(),(path_end - 1) - name.begin());
+				auto i=m_keys.find(parent);
+				if(i==m_keys.end())
+					{return 0;}
+				if(i->second!=Type::COMPOUND)
+					{return 0;}
+				auto key_tot=Key(name.begin());
+				i=m_keys.find(key_tot);
+				if(i!=m_keys.end())
+					{return 0;}
+				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY:Type::COMPOUND});
+				return 1;
+				}
+
+
+			template<class KeyType>
+			bool elementInsert(const KeyType& parent,bool array)
+				{
+				auto key_tot=Key(parent.begin());
+				auto i=m_keys.find(key_tot);
+				if(i==m_keys.end())
+					{return 0;}
+				if(i->second!=Type::COMPOUND_ARRAY)
+					{return 0;}
+				key_tot+=pathsep();
+			#if 0
+				key_tot+=idCreate(item_count);
+				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY?TYPE::COMPOUND});
+			#else
+				return 0;
+			#endif
 				}
 				
 
@@ -514,6 +551,13 @@ namespace Temple
 		return tree_.insert(value_,TEMPLE_MAKE_ID(path)); \
 		}(tree,value)
 
+#define TEMPLE_COMPOUND_INSERT(tree,array,...) \
+	[](auto& tree_,auto array_) \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.compoundInsert(TEMPLE_MAKE_ID(path),array_);\
+		}(tree,array)
+
 template<class StorageModel>
 template<class Source,class ProgressMonitor>
 Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src,ProgressMonitor& monitor)
@@ -547,7 +591,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 
 //	Do not call feof, since that function expects that the caller
 //	has tried to read data first. This is not compatible with API:s 
-//	that have UB when trying to read at EOF.
+//	that have UB when trying to read at EOF. Using a wrapper solves
+//	that problem.
 	typename BufferType::value_type ch_in;
 	while(read(src,ch_in))
 		{

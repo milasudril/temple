@@ -116,6 +116,8 @@ int main()
 
 		Temple::ItemTree<>::StringType new_string("Hello, World");
 		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
+		assert(TEMPLE_COMPOUND_INSERT(tree,0,"0000000000000001","a compound"));
+		assert(TEMPLE_INSERT_MOVE(tree,42,"0000000000000001","a compound","the answer to the question about universe life and everything"));
 
 		const auto& ctree=tree;
 		const int* cx;
