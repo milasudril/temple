@@ -648,7 +648,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 								node_current.key+=pathsep();
 								node_current.key+=idCreate(node_current.item_count);
 								}
-						//	++nodes.top().item_count;
+							++nodes.top().item_count;
 							}
 						node_current.array=0;
 						node_current.item_count=0;
@@ -665,7 +665,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 								node_current.key+=pathsep();
 								node_current.key+=idCreate(node_current.item_count);
 								}
-						//	++nodes.top().item_count;
+							++nodes.top().item_count;
 							}
 						node_current.array=1;
 						nodes.push(node_current);
@@ -776,7 +776,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 					{
 					case ',':
 						node_current=nodes.top();
-						++node_current.item_count;
+					//	++node_current.item_count;
 						if(node_current.array)
 							{state_current=State::COMPOUND_BEGIN;}
 						else
@@ -790,7 +790,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							return *this;
 							}
 						node_current=nodes.top();
-						++node_current.item_count;
+					//	++node_current.item_count;
 						nodes.pop();
 						if(node_current.array)
 							{monitor.raise(Error("An array must be terminated with ']'."));}
@@ -803,7 +803,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							return *this;
 							}
 						node_current=nodes.top();
-						++node_current.item_count;
+					//	++node_current.item_count;
 						nodes.pop();
 						if(!node_current.array)
 							{monitor.raise(Error("A compound must be terminated with '}'."));}
