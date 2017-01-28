@@ -642,36 +642,36 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 				switch(ch_in)
 					{
 					case '{':
-						if(nodes.size())
+						nodes.push(node_current);
+						if(node_current.array)
 							{
-							if(nodes.top().array)
-								{
-								node_current.key+=pathsep();
-								node_current.key+=idCreate(node_current.item_count);
-								}
-							++nodes.top().item_count;
+							node_current.key+=pathsep();
+							node_current.key+=idCreate(node_current.item_count);
 							}
 						node_current.array=0;
 						node_current.item_count=0;
-						nodes.push(node_current);
-					//	FIXME: Increment counter on parent node
+						if(m_keys.find(node_current.key)!=m_keys.end())
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
 						m_keys[node_current.key]={Type::COMPOUND,0};
 						state_current=State::KEY_BEGIN;
 						break;
 					case '[':
-						if(nodes.size() && nodes.top().array)
+						nodes.push(node_current);
+						if(node_current.array)
 							{
-							if(nodes.top().array)
-								{
-								node_current.key+=pathsep();
-								node_current.key+=idCreate(node_current.item_count);
-								}
-							++nodes.top().item_count;
+							node_current.key+=pathsep();
+							node_current.key+=idCreate(node_current.item_count);
 							}
 						node_current.array=1;
 						node_current.item_count=0;
-						nodes.push(node_current);
-					//	FIXME: Increment counter on parent node
+						if(m_keys.find(node_current.key)!=m_keys.end())
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
 						m_keys[node_current.key]={Type::COMPOUND_ARRAY,0};
 						state_current=State::COMPOUND_BEGIN;
 						break;
@@ -773,12 +773,10 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 					}
 				break;
 
-			case State::DELIMITER:
+			case State::DELIMITER: //End of compound
 				switch(ch_in)
 					{
 					case ',':
-						node_current=nodes.top();
-					//	++node_current.item_count;
 						if(node_current.array)
 							{state_current=State::COMPOUND_BEGIN;}
 						else
@@ -791,11 +789,11 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							monitor.raise(Error("There is no more block to terminate."));
 							return *this;
 							}
-						node_current=nodes.top();
-					//	++node_current.item_count;
-						nodes.pop();
 						if(node_current.array)
 							{monitor.raise(Error("An array must be terminated with ']'."));}
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
 						break;
 					case ']':
 						state_current=State::DELIMITER;
@@ -804,11 +802,11 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							monitor.raise(Error("There is no more block to terminate."));
 							return *this;
 							}
-						node_current=nodes.top();
-					//	++node_current.item_count;
-						nodes.pop();
 						if(!node_current.array)
 							{monitor.raise(Error("A compound must be terminated with '}'."));}
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
 						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
@@ -841,6 +839,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						token_in.clear();
 						node_current=nodes.top();
 						nodes.pop();
+						++node_current.item_count;
 						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace

@@ -57,7 +57,7 @@ void test(std::vector<int32_t>& v)
 int main()
 	{
 	setlocale(LC_ALL,"");
-	const char* src=R"EOF([{
+	const char* src=R"EOF({
  "\"quotation marks\" in \"key\""i32:1234
 ,"bar":
 	{"baz"i64:124380867045036}
@@ -97,14 +97,22 @@ int main()
 		 {"a key"s:"A value"}
 		,{"a key"s:"A value 2"}
 	]
-},{"property"s:"value"}])EOF";
+})EOF";
 
 	Monitor m;
 	try
 		{
-		ItemTree<> tree(Reader{src},m);
+		ItemTree<> tree(Reader{R"EOF({
+"compound array":
+	[
+		 {"key"i32:1}
+		,{"foo"s:"bar"}
+		,{"key"i32:2}
+	]
+})EOF"},m);
+	//	ItemTree<> tree(Reader{src},m);
 		m.reset();
-
+/*
 		Temple::ItemTree<>::StringType* ret;
 		assert(TEMPLE_FIND(tree,ret,   "0000000000000001","property"));
 		assert(!TEMPLE_INSERT_MOVE(tree,1234,"root","foo","bar"));
@@ -121,8 +129,8 @@ int main()
 
 		const auto& ctree=tree;
 		const int* cx;
-		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
-		ctree.store(stdout,m);
+		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));*/
+		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{
