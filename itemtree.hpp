@@ -66,8 +66,8 @@ namespace Temple
 				Locale loc;
 				size_t level_prev=0;
 				std::stack<char> close_symb;
-				itemsProcess([this,&close_symb,&sink,&level_prev,&eh](const auto& key
-					,auto child_count,auto tag,const auto& value)
+				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,size_t child_count
+					,auto tag,const auto& value)
 					{
 					auto level=this->count(key,pathsep());
 					if(level==0)
@@ -86,7 +86,7 @@ namespace Temple
 						}
 					putc(level==level_prev?',':' ',sink);
 					auto path_end=this->rfind(key,pathsep());
-					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,value,sink,eh);
+					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,value,sink);
 					level_prev=level;
 					},eh);
 				while(level_prev!=0)
@@ -264,8 +264,8 @@ namespace Temple
 			template<Type t,class dummy=void>
 			struct RecordWrite
 				{
-				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink,ExceptionHandler& eh)
+				template<class Sink,class KeyCstr,class Value>
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					putc('"',sink);
@@ -279,8 +279,8 @@ namespace Temple
 			template<class dummy>
 			struct RecordWrite<Type::COMPOUND,dummy>
 				{
-				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink,ExceptionHandler& eh)
+				template<class Sink,class KeyCstr,class Value>
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
@@ -297,8 +297,8 @@ namespace Temple
 			template<class dummy>
 			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
 				{
-				template<class Sink,class KeyCstr,class Value,class ExceptionHandler>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink,ExceptionHandler& eh)
+				template<class Sink,class KeyCstr,class Value>
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
