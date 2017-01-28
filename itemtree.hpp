@@ -69,6 +69,7 @@ namespace Temple
 				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,size_t child_count
 					,auto tag,const auto& value)
 					{
+					fprintf(stderr,"%s\n",key.c_str());
 					auto level=this->count(key,pathsep());
 					if(level==0)
 						{
@@ -668,6 +669,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							++nodes.top().item_count;
 							}
 						node_current.array=1;
+						node_current.item_count=0;
 						nodes.push(node_current);
 					//	FIXME: Increment counter on parent node
 						m_keys[node_current.key]={Type::COMPOUND_ARRAY,0};
