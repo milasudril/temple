@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <clocale>
 #include <cinttypes>
+#include <algorithm>
 
 using namespace Temple;
 
@@ -104,9 +105,16 @@ int main()
 		ItemTree<> tree(Reader{src},m);
 		m.reset();
 
-		static constexpr auto path=Temple::make_path('\001',"0000000000000000","foo","bar");
-		test( tree.find< Temple::ItemTree<>::ArrayType<int32_t> >(path.c_str(),m) );
-		tree.store(stdout,m);
+		Temple::ItemTree<>::ArrayType<int32_t>* ret;
+		if(TEMPLE_FIND(tree,ret,"0000000000000000","foo","bar"))
+			{
+			std::for_each(ret->begin(),ret->end(),[](auto& x)
+				{
+				printf("%d ",x);
+				});
+			}
+
+	//	tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{

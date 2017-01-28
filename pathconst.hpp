@@ -14,17 +14,4 @@ namespace Temple
 		{return concat(concat(delimiter,a),make_path(delimiter,b...));}
 	}
 
-#define TEMPLE_CONCAT_IMPL(x,y) x##y
-#define TEMPLE_MACRO_CONCAT( x, y ) TEMPLE_CONCAT_IMPL( x, y )
-
-#define TEMPLE_MAKE_ID(x) TEMPLE_MACRO_CONCAT(x, __LINE__)
-
-#define TEMPLE_USE_PATH_AS_CSTR(function,delimiter,...) \
-	do \
-		{ \
-		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(delimiter,__VA_ARGS__); \
-		function(TEMPLE_MAKE_ID(path).c_str()); \
-		} \
-	while(0)
-
 #endif

@@ -96,17 +96,28 @@ namespace Temple
 					}
 				}
 
-			template<class T,class ExceptionHandler>
-			T& find(KeyPointer key,ExceptionHandler&& eh) 
+			template<class T>
+			bool find(T*& ret,const KeyPointer key)
 				{
 				static constexpr auto id=IdGet<T,StorageModel>::id;
 				auto& data=dataGet<id>();
 				auto i=data.find(key);
 				if(i==data.end())
-					{
-					eh.raise(Error("Key «",key,"» does not correspond to any ",TypeGet<id,StorageModel>::name.c_str(),"."));
-					}
-				return i->second;
+					{return 0;}
+				ret=&i->second;
+				return 1;
+				}
+
+			template<class T>
+			bool find(const T*& ret,const KeyPointer key) const
+				{
+				static constexpr auto id=IdGet<T,StorageModel>::id;
+				auto& data=dataGet<id>();
+				auto i=data.find(key);
+				if(i==data.end())
+					{return 0;}
+				ret=&i->second;
+				return 1;
 				}
 				
 
@@ -443,6 +454,18 @@ namespace Temple
 				}
 		};
 	}
+
+#define TEMPLE_CONCAT_IMPL(x,y) x##y
+#define TEMPLE_MACRO_CONCAT( x, y ) TEMPLE_CONCAT_IMPL( x, y )
+
+#define TEMPLE_MAKE_ID(x) TEMPLE_MACRO_CONCAT(x, __LINE__)
+
+#define TEMPLE_FIND(tree,value,...) \
+	[](auto& tree_,auto& value_) \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.find(value_,TEMPLE_MAKE_ID(path).c_str()); \
+		}(tree,value)
 
 template<class StorageModel>
 template<class Source,class ProgressMonitor>
