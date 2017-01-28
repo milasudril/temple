@@ -66,7 +66,8 @@ namespace Temple
 				Locale loc;
 				size_t level_prev=0;
 				std::stack<char> close_symb;
-				itemsProcess([this,&close_symb,&sink,&level_prev,&eh](const auto& key,auto tag,const auto& value)
+				itemsProcess([this,&close_symb,&sink,&level_prev,&eh](const auto& key
+					,auto child_count,auto tag,const auto& value)
 					{
 					auto level=this->count(key,pathsep());
 					if(level==0)
@@ -130,14 +131,18 @@ namespace Temple
 				auto i=m_keys.find(compound);
 				if(i==m_keys.end())
 					{return 0;}
+				if(i->second.type!=Type::COMPOUND)
+					{return 0;}
+				
 				auto key_tot=Key(key.begin());
-				i=m_keys.find(key_tot);
-				if(i!=m_keys.end())
+				auto i2=m_keys.find(key_tot);
+				if(i2!=m_keys.end())
 					{return 0;}
 				static constexpr auto id=IdGet<std::remove_reference_t<T>,StorageModel>::id;
-				i=m_keys.insert({std::move(key_tot),id}).first;
+				i2=m_keys.insert({std::move(key_tot),{id,0}}).first;
 				auto& data=dataGet<id>();
-				data.insert({i->first.c_str(),std::move(value)});
+				data.insert({i2->first.c_str(),std::move(value)});
+				++(i->second.child_count);
 				return 1;
 				}
 
@@ -157,13 +162,14 @@ namespace Temple
 				auto i=m_keys.find(parent);
 				if(i==m_keys.end())
 					{return 0;}
-				if(i->second!=Type::COMPOUND)
+				if(i->second.type!=Type::COMPOUND)
 					{return 0;}
 				auto key_tot=Key(name.begin());
-				i=m_keys.find(key_tot);
-				if(i!=m_keys.end())
+				auto i2=m_keys.find(key_tot);
+				if(i2!=m_keys.end())
 					{return 0;}
-				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY:Type::COMPOUND});
+				m_keys.insert({std::move(key_tot),{array?Type::COMPOUND_ARRAY:Type::COMPOUND,0}});
+				++(i->second.child_count);
 				return 1;
 				}
 
@@ -420,8 +426,13 @@ namespace Temple
 				{return i.m_position;}
 
 
-
-			MapType<StringType,Type, std::less<StringType> > m_keys;
+			struct NodeInfo
+				{
+				Type type;
+				size_t child_count;
+				};
+				
+			MapType<StringType,NodeInfo, std::less<StringType> > m_keys;
 
 			template<class T>
 			static ArrayType<T>* get(void* array_pointer) noexcept
@@ -442,7 +453,8 @@ namespace Temple
 			ArrayPointer<ExceptionHandler> arrayGet(Type type,const Key& key,ExceptionHandler& eh)
 				{
 				type=arraySet(type);
-				auto ip=m_keys.insert({key,type});
+			//	FIXME increment parent child count
+				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
 					eh.raise(Error("Key «",key.c_str(),"» already exists."));
@@ -464,7 +476,8 @@ namespace Temple
 			template<class ExceptionHandler>
 			void valueSet(Type type,const Key& key,const StringType& value,ExceptionHandler& eh)
 				{
-				auto ip=m_keys.insert({key,type});
+			//	FIXME increment parent child count
+				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
 					eh.raise(Error("Key «",key.c_str(),"» already exists."));
@@ -497,12 +510,12 @@ namespace Temple
 			struct ItemProcessTrampoline
 				{
 				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
-				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
-					,ValueTag x)
+				static inline void go(ItemProcessor& proc,const StringType& key
+					,size_t child_count,IteratorSet& iterators,ValueTag x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					auto& j=iteratorGet<type_id>(iterators);
-					proc(key,x,j->second);
+					proc(key,child_count,x,j->second);
 					++j;
 					}
 				};
@@ -511,9 +524,9 @@ namespace Temple
 			struct ItemProcessTrampoline<true,dummy>
 				{
 				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
-				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
+				static inline void go(ItemProcessor& proc,const StringType& key,size_t child_count,IteratorSet& iterators
 					,ValueTag x)
-					{proc(key,x,0);}
+					{proc(key,child_count,x,0);}
 				};
 
 			BufferType idCreate(size_t index)
@@ -637,7 +650,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						node_current.array=0;
 						node_current.item_count=0;
 						nodes.push(node_current);
-						m_keys[node_current.key]=Type::COMPOUND;
+					//	FIXME: Increment counter on parent node
+						m_keys[node_current.key]={Type::COMPOUND,0};
 						state_current=State::KEY_BEGIN;
 						break;
 					case '[':
@@ -649,7 +663,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							}
 						node_current.array=1;
 						nodes.push(node_current);
-						m_keys[node_current.key]=Type::COMPOUND_ARRAY;
+					//	FIXME: Increment counter on parent node
+						m_keys[node_current.key]={Type::COMPOUND_ARRAY,0};
 						state_current=State::COMPOUND_BEGIN;
 						break;
 					case ']':
@@ -881,12 +896,13 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	while(i!=i_end)
 		{
 		auto& key=i->first;
+		auto child_count=i->second.child_count;
 		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
-		(i->second,[&key,&iterators,this,&proc](auto x)
+		(i->second,[&key,&iterators,this,&proc,child_count](auto x)
 			{
 			static constexpr auto type_id=decltype(x)::id;
 			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
-				::go(proc,key,iterators,x);
+				::go(proc,key,child_count,iterators,x);
 			},eh);
 		++i;
 		}
@@ -904,12 +920,13 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	while(i!=i_end)
 		{
 		auto& key=i->first;
+		auto child_count=i->second.child_count;
 		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
-		(i->second,[&key,&iterators,this,&proc](auto x)
+		(i->second.type,[&key,&iterators,this,&proc,child_count](auto x)
 			{
 			static constexpr auto type_id=decltype(x)::id;
 			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
-				::go(proc,key,iterators,x);
+				::go(proc,key,child_count,iterators,x);
 			},eh);
 		++i;
 		}
