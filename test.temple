@@ -35,5 +35,9 @@
 	},"goo":{
 		 "key"i32:12456
 }},{
-	 "property"s:"value"
+	 "a compound":{
+		 "the answer to the question about universe life and everything"i32:42
+	},"another property"s:"Hello, World"
+	,"property"s:"value"
+	,"test"i32:123456
 }]
