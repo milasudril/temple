@@ -112,11 +112,15 @@ int main()
 		int* x;
 		assert(TEMPLE_FIND(tree,x,"0000000000000001","test"));
 		assert(*x==1234);
+		*x=123456;
+
 		Temple::ItemTree<>::StringType new_string("Hello, World");
 		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
 
-
-		tree.store(stdout,m);
+		const auto& ctree=tree;
+		const int* cx;
+		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
+		ctree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{
