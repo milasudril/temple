@@ -105,16 +105,18 @@ int main()
 		ItemTree<> tree(Reader{src},m);
 		m.reset();
 
-		Temple::ItemTree<>::ArrayType<int32_t>* ret;
-		if(TEMPLE_FIND(tree,ret,"0000000000000000","foo","bar"))
-			{
-			std::for_each(ret->begin(),ret->end(),[](auto& x)
-				{
-				printf("%d ",x);
-				});
-			}
+		Temple::ItemTree<>::StringType* ret;
+		assert(TEMPLE_FIND(tree,ret,   "0000000000000001","property"));
+		assert(!TEMPLE_INSERT_MOVE(tree,1234,"root","foo","bar"));
+		assert(TEMPLE_INSERT_MOVE(tree,1234,"0000000000000001","test"));
+		int* x;
+		assert(TEMPLE_FIND(tree,x,"0000000000000001","test"));
+		assert(*x==1234);
+		Temple::ItemTree<>::StringType new_string("Hello, World");
+		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
 
-	//	tree.store(stdout,m);
+
+		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{

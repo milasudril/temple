@@ -1,7 +1,7 @@
 //@	{"targets":[{"name":"itemtree.hpp","type":"include"}]}
 
-#ifndef AJSON_ITEMTREE_HPP
-#define AJSON_ITEMTREE_HPP
+#ifndef TEMPLE_ITEMTREE_HPP
+#define TEMPLE_ITEMTREE_HPP
 
 #include "converters.hpp"
 #include "type.hpp"
@@ -97,7 +97,7 @@ namespace Temple
 				}
 
 			template<class T>
-			bool find(T*& ret,const KeyPointer key)
+			bool find(T*& ret,KeyPointer key) noexcept
 				{
 				static constexpr auto id=IdGet<T,StorageModel>::id;
 				auto& data=dataGet<id>();
@@ -109,7 +109,7 @@ namespace Temple
 				}
 
 			template<class T>
-			bool find(const T*& ret,const KeyPointer key) const
+			bool find(const T*& ret,KeyPointer key) const noexcept
 				{
 				static constexpr auto id=IdGet<T,StorageModel>::id;
 				auto& data=dataGet<id>();
@@ -118,6 +118,35 @@ namespace Temple
 					{return 0;}
 				ret=&i->second;
 				return 1;
+				}
+
+
+			template<class T,class KeyType>
+			bool insert(T&& value,const KeyType& key)
+				{
+				auto path_end=this->rfind(key.begin(),key.end(),pathsep());
+				assert(path_end!=nullptr);
+				auto compound=Key(key.begin(),(path_end - 1) - key.begin());
+
+				auto i=m_keys.find(compound);
+				if(i==m_keys.end())
+					{return 0;}
+				auto key_tot=Key(key.begin());
+				i=m_keys.find(key_tot);
+				if(i!=m_keys.end())
+					{return 0;}
+				static constexpr auto id=IdGet<std::remove_reference_t<T>,StorageModel>::id;
+				i=m_keys.insert({std::move(key_tot),id}).first;
+				auto& data=dataGet<id>();
+				data.insert({i->first.c_str(),std::move(value)});
+				return 1;
+				}
+
+			template<class T,class KeyType>
+			bool insert(const T& value,const KeyType& key)
+				{
+				T copy(value);
+				return insert(std::move(copy),key);
 				}
 				
 
@@ -250,18 +279,22 @@ namespace Temple
 			template<class KeyType,class Value,class Compare=KeyCompare>
 			using MapType=std::map<KeyType,Value,Compare>;
 
-			static const typename StringType::value_type* rfind(const StringType& str
-				,typename StringType::value_type ch) noexcept
+			template<class T>
+			static const T* rfind(const T* begin,const T* end,T ch) noexcept
 				{
-				auto begin=str.begin();
-				auto end=str.end();
 				while(end!=begin)
 					{
 					--end;
 					if(*end==ch)
-						{return &(*(end+1));}
+						{return end+1;}
 					}
 				return nullptr;
+				}
+
+			static const typename StringType::value_type* rfind(const StringType& str
+				,typename StringType::value_type ch) noexcept
+				{
+				return rfind(str.data(),str.data() + str.size(),ch);
 				}
 
 			static size_t count(const StringType& str,typename StringType::value_type ch) noexcept
@@ -465,6 +498,20 @@ namespace Temple
 		{ \
 		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
 		return tree_.find(value_,TEMPLE_MAKE_ID(path).c_str()); \
+		}(tree,value)
+
+#define TEMPLE_INSERT_COPY(tree,value,...) \
+	[](auto& tree_,const auto& value_)\
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.insert(value_,TEMPLE_MAKE_ID(path)); \
+		}(tree,value)
+
+#define TEMPLE_INSERT_MOVE(tree,value,...) \
+	[](auto& tree_,auto&& value_)\
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.insert(value_,TEMPLE_MAKE_ID(path)); \
 		}(tree,value)
 
 template<class StorageModel>
