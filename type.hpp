@@ -6,6 +6,7 @@
 #include "error.hpp"
 #include "stringconst.hpp"
 #include <cassert>
+#include <cstdlib>
 #include <type_traits>
 
 namespace Temple
@@ -229,7 +230,10 @@ namespace Temple
 		{
 		template<class Callback,class ExceptionHandler>
 		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
-			{eh.raise(Error("Internal error: Type not found."));}
+			{
+			eh.raise(Error("Internal error: Type not found."));
+			abort();
+			}
 		};
 
 	template<class StorageModel,Type start,int x,Type end,class Callback,class ExceptionHandler>
@@ -253,10 +257,8 @@ namespace Temple
 			{return Type::FLOAT;}
 		if(str=="d")
 			{return Type::DOUBLE;}
-		if(str=="")
-			{return Type::COMPOUND;}
 		eh.raise(Error("The type identifier ",str.c_str()," does not correspond to a known type."));
-		return Type::COMPOUND;
+		abort();
 		}
 
 	inline const char* type(Type type)

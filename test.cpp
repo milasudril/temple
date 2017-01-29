@@ -57,62 +57,63 @@ void test(std::vector<int32_t>& v)
 int main()
 	{
 	setlocale(LC_ALL,"");
-	const char* src=R"EOF({
- "\"quotation marks\" in \"key\""i32:1234
-,"bar":
-	{"baz"i64:124380867045036}
-,"foo":
+
+	const char* src=R"EOF([{
+ "\"quotation marks\" in \"key\"",i32:1234
+,bar:
+	{baz,i64:124380867045036}
+,foo:
 	{
-	 "a string"s:"Hello, World"
-	,"another valid string"s:This\ is\ legal\ too
-	,"bar"i32:[1,2,3,4]
-	,"empty array"i32:[]
+	 "a string",s:"Hello, World"
+	,"another valid string",s:This\ is\ legal\ too
+	,bar,i32:[1,2,3,4]
+	,"empty array",i32:[]
 	,"more objects":
 		{
-		"foo"s:"bar"
-		,"value"d:3.14
-		,"value as float"f:3.14
+		 foo,s:"bar"
+		,value,d:3.14
+		,"value as float",f:3.14
 		}
-	,"xxx"s:"more stuff"
-	,"yyy"s:"more stuff"
+	,xxx,s:"more stuff"
+	,yyy,s:"more stuff"
 	}
-,"goo":{"key"i32:12456}
+,"goo":{key,i32:12456}
 ,"compound array":
 	[
-		 {"a key"s:"A value"}
+		 {"a key",s:"A value"}
 		,{
-		"a key"s:"A value 2"
+		"a key",s:"A value 2"
 		,"array":
 			[
 				{
-				 "bar"i32:2
-				,"foo"i32:"1"
+				 bar,i32:2
+				,foo,i32:"1"
 				}
 			]
 		 }
-		,[{"foo"s:"bar"},{"foo"s:"bar2"}]
+		,[{foo,s:"bar"},{foo,s:"bar2"}]
 	]
 ,"compound array 2":
 	[
-		 {"a key"s:"A value"}
-		,{"a key"s:"A value 2"}
+		 {"a key",s:"A value"}
+		,{"a key",s:"A value 2"}
 	]
-})EOF";
+},{property,s:,"empty compound",s:}])EOF";
 
 	Monitor m;
 	try
 		{
-		ItemTree<> tree(Reader{R"EOF({
-"compound array":
-	[
-		 {"key"i32:1}
-		,{"foo"s:"bar"}
-		,{"key"i32:2}
-	]
-})EOF"},m);
-	//	ItemTree<> tree(Reader{src},m);
+/*		ItemTree<> tree(Reader{R"EOF({objects:
+	{
+		 object_0:{key1,i32:1}
+		,object_1:{foo,s:"bar"}
+		,object_2:{key,i32:2}
+	}
+	,foo,i32:1234
+})EOF"},m);*/
+		ItemTree<> tree(Reader{src},m);
 		m.reset();
-/*
+
 		Temple::ItemTree<>::StringType* ret;
 		assert(TEMPLE_FIND(tree,ret,   "0000000000000001","property"));
 		assert(!TEMPLE_INSERT_MOVE(tree,1234,"root","foo","bar"));
@@ -129,7 +130,7 @@ int main()
 
 		const auto& ctree=tree;
 		const int* cx;
-		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));*/
+		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
 		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)

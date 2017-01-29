@@ -69,7 +69,7 @@ namespace Temple
 				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,size_t child_count
 					,auto tag,const auto& value)
 					{
-					fprintf(stderr,"%s\n",key.c_str());
+				//	fprintf(stderr,"%s\n",key.c_str());
 					auto level=this->count(key,pathsep());
 					if(level==0)
 						{
@@ -270,8 +270,8 @@ namespace Temple
 					{
 					assert(key!=nullptr);
 					putc('"',sink);
-					write(key,sink,'"');
-					fprintf(sink,"\"%s:",type(t));
+					write(key,sink,'"','\\');
+					fprintf(sink,"\",%s:",type(t));
 					write(value,sink);
 					putc('\n',sink);
 					}
@@ -287,7 +287,7 @@ namespace Temple
 					if(close_symb.top()=='}')
 						{
 						putc('"',sink);
-						write(key,sink,'"');
+						write(key,sink,'"','\\');
 						fputs("\":",sink);
 						}
 					fputs("{\n",sink);
@@ -305,7 +305,7 @@ namespace Temple
 					if(close_symb.top()=='}')
 						{
 						putc('"',sink);
-						write(key,sink,'"');
+						write(key,sink,'"','\\');
 						fputs("\":",sink);
 						}
 
@@ -578,9 +578,8 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 	{
 	enum class State:int
 		{
-		 KEY,ESCAPE,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
-		,ARRAY,VALUE,DELIMITER,KEY_BEGIN,VALUE_STRING
-		,ITEM_STRING
+		 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
+		,ARRAY,KEY_NEXT,VALUE,DELIMITER,VALUE_STRING,ITEM_STRING
 		};
 
 	uintmax_t line_count=1;
@@ -598,7 +597,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 		bool array;
 		};
 		
-	Node node_current{"",Type::COMPOUND,0,0};
+	Node node_current{"",Type::I8,0,0};
 	std::stack<Node> nodes;
 	ArrayPointer<ProgressMonitor> array_pointer;
 	
@@ -619,9 +618,111 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 		monitor.positionUpdate(line_count,col_count);
 		switch(state_current)
 			{
+			case State::KEY:
+				switch(ch_in)
+					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '"':
+						state_current=State::KEY_STRING;
+						break;
+					case pathsep():
+						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
+						return *this;
+					case ',':
+						nodes.push(node_current);
+						node_current.key.push_back(pathsep());
+						node_current.key.append(token_in);
+						node_current.item_count=0;
+						token_in.clear();
+						state_current=State::TYPE;
+						break;
+					case ':':
+						nodes.push(node_current);
+						node_current.key.push_back(pathsep());
+						node_current.key.append(token_in);
+						node_current.item_count=0;
+						token_in.clear();
+						state_current=State::COMPOUND_BEGIN;
+						break;
+
+					default:
+						if(! (ch_in>=0 && ch_in<=' ') )
+							{token_in.push_back(ch_in);}
+					}
+				break;
+
+			case State::COMMENT:
+				switch(ch_in)
+					{
+					case '\n':
+						state_current=state_old;
+						break;
+					default:
+						break;
+					}
+				break;
+
+			case State::ESCAPE:
+				if(state_old==State::KEY && ch_in==pathsep())
+					{
+					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
+					return *this;
+					}
+
+				token_in+=ch_in;
+				state_current=state_old;
+				break;
+
+			case State::KEY_STRING:
+				switch(ch_in)
+					{
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '"':
+						state_current=State::KEY;
+						break;
+					case pathsep():
+						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
+						return *this;
+					default:
+						token_in.push_back(ch_in);
+					}
+				break;
+
+			case State::TYPE:
+				switch(ch_in)
+					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case ':':
+						node_current.type=type(token_in,monitor);
+						token_in.clear();
+						state_current=State::ARRAY_CHECK;
+						break;
+					default:
+						token_in.push_back(ch_in);
+					}
+				break;
+				
+
 			case State::ARRAY_CHECK:
 				switch(ch_in)
 					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
 					case '{':
 						monitor.raise(Error("A compound has been opened, but current object has "
 							"been declared as '",type(node_current.type),'\''));
@@ -633,121 +734,85 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 					case '"':
 						state_current=State::VALUE_STRING;
 						break;
-					default:
-						token_in+=ch_in;
-						state_current=State::VALUE;
-					}
-				break;
-			case State::COMPOUND_BEGIN:
-				switch(ch_in)
-					{
-					case '{':
-						nodes.push(node_current);
-						if(node_current.array)
-							{
-							node_current.key+=pathsep();
-							node_current.key+=idCreate(node_current.item_count);
-							}
-						node_current.array=0;
-						node_current.item_count=0;
-						if(m_keys.find(node_current.key)!=m_keys.end())
-							{
-							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
-							return *this;
-							}
-						m_keys[node_current.key]={Type::COMPOUND,0};
-						state_current=State::KEY_BEGIN;
-						break;
-					case '[':
-						nodes.push(node_current);
-						if(node_current.array)
-							{
-							node_current.key+=pathsep();
-							node_current.key+=idCreate(node_current.item_count);
-							}
-						node_current.array=1;
-						node_current.item_count=0;
-						if(m_keys.find(node_current.key)!=m_keys.end())
-							{
-							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
-							return *this;
-							}
-						m_keys[node_current.key]={Type::COMPOUND_ARRAY,0};
-						state_current=State::COMPOUND_BEGIN;
-						break;
-					case ']':
-						monitor.raise(Error("Empty array of compounds is not allowed."));
-						return *this;
-					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{
-							monitor.raise(Error("Array '[' or compound '{' expected."));
-							return *this;
-							}
-					}
-				break;
-			case State::KEY_BEGIN:
-				switch(ch_in)
-					{
-					case '"':
+					case ',':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
 						state_current=State::KEY;
 						break;
 					case '}':
-						monitor.raise(Error("Empty compound is not allowed."));
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::DELIMITER;
 						break;
 					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
+						if(!(ch_in>=0 && ch_in<=' ') )
 							{
-							monitor.raise(Error("A key must begin with '\"', not '",ch_in,"'."));
-							return *this;
+							token_in.push_back(ch_in);
+							state_current=State::VALUE;
 							}
 					}
 				break;
 
-			case State::KEY:
+			case State::VALUE:
 				switch(ch_in)
 					{
 					case '\\':
 						state_old=state_current;
 						state_current=State::ESCAPE;
 						break;
-					case pathsep():
-						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
-						return *this;
 					case '"':
-						node_current.key+=pathsep();
-						node_current.key+=token_in;
-						state_current=State::TYPE;
+						state_current=State::VALUE_STRING;
+						break;
+					case ',':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::KEY;
+						break;
+					case '}':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::DELIMITER;
 						break;
 					default:
-						token_in+=ch_in;
+						if(!(ch_in>=0 && ch_in<=' '))
+							{token_in.push_back(ch_in);}
 					}
 				break;
 
-			case State::TYPE:
+			case State::VALUE_STRING:
 				switch(ch_in)
 					{
+					case '\"':
+						state_current=State::VALUE;
+						break;
 					case '\\':
 						state_old=state_current;
 						state_current=State::ESCAPE;
 						break;
-					case ':':
-						node_current.type=type(token_in,monitor);
-						token_in.clear();
-						if(node_current.type==Type::COMPOUND)
-							{state_current=State::COMPOUND_BEGIN;}
-						else
-							{state_current=State::ARRAY_CHECK;}
-						break;
 					default:
-						token_in+=ch_in;
+						token_in.push_back(ch_in);
 					}
 				break;
 
 			case State::ARRAY:
 				switch(ch_in)
 					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
 					case '"':
 						state_current=State::ITEM_STRING;
 						break;
@@ -765,100 +830,28 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							array_pointer.append(array_pointer.m_object,token_in,monitor);
 							token_in.clear();
 							}
-						state_current=State::DELIMITER;
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::KEY_NEXT;
 						break;
 					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{token_in+=ch_in;}
+						if(!(ch_in>=0 && ch_in<=' '))
+							{token_in.push_back(ch_in);}
 					}
 				break;
-
-			case State::DELIMITER: //End of compound
+			case State::KEY_NEXT:
 				switch(ch_in)
 					{
 					case ',':
-						if(node_current.array)
-							{state_current=State::COMPOUND_BEGIN;}
-						else
-							{state_current=State::KEY_BEGIN;}
-						break;
-					case '}':
-						state_current=State::DELIMITER;
-						if(nodes.size()==0)
-							{
-							monitor.raise(Error("There is no more block to terminate."));
-							return *this;
-							}
-						if(node_current.array)
-							{monitor.raise(Error("An array must be terminated with ']'."));}
-						node_current=nodes.top();
-						nodes.pop();
-						++node_current.item_count;
-						break;
-					case ']':
-						state_current=State::DELIMITER;
-						if(nodes.size()==0)
-							{
-							monitor.raise(Error("There is no more block to terminate."));
-							return *this;
-							}
-						if(!node_current.array)
-							{monitor.raise(Error("A compound must be terminated with '}'."));}
-						node_current=nodes.top();
-						nodes.pop();
-						++node_current.item_count;
+						state_current=State::KEY;
 						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
+							monitor.raise(Error("Expected ',' after value array."));
 							return *this;
 							}
-					}
-				break;
-
-			case State::VALUE:
-				switch(ch_in)
-					{
-					case '\\':
-						state_old=state_current;
-						state_current=State::ESCAPE;
-						break;
-					case '"':
-						state_current=State::VALUE_STRING;
-						break;
-					case ',':
-						state_current=State::KEY_BEGIN;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
-						token_in.clear();
-						node_current=nodes.top();
-						break;
-					case '}':
-						state_current=State::DELIMITER;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
-						token_in.clear();
-						node_current=nodes.top();
-						nodes.pop();
-						++node_current.item_count;
-						break;
-					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{token_in+=ch_in;}
-					}
-				break;
-
-			case State::VALUE_STRING:
-				switch(ch_in)
-					{
-					case '\"':
-						state_current=State::VALUE;
-						break;
-					case '\\':
-						state_old=state_current;
-						state_current=State::ESCAPE;
-						break;
-					default:
-						token_in+=ch_in;
 					}
 				break;
 
@@ -873,23 +866,105 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_current=State::ESCAPE;
 						break;
 					default:
-						token_in+=ch_in;
+						token_in.push_back(ch_in);
 					}
 				break;
 
-			case State::ESCAPE:
-				if(state_old==State::KEY && ch_in==pathsep())
+			case State::COMPOUND_BEGIN:
+				switch(ch_in)
 					{
-					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
-					return *this;
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case '{':
+						if(!m_keys.insert({node_current.key,{Type::COMPOUND,0}}).second)
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
+						state_current=State::KEY;
+						break;
+					case '[':
+						if(!m_keys.insert({node_current.key,{Type::COMPOUND_ARRAY,0}}).second)
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
+						node_current.array=1;
+						nodes.push(node_current);
+						node_current.key.push_back( pathsep() );
+						node_current.key.append( idCreate(node_current.item_count) );
+						node_current.item_count=0;
+						node_current.array=0;
+						state_current=State::COMPOUND_BEGIN;
+						break;
+					case ']':
+						monitor.raise(Error("Empty array of compounds is not allowed."));
+						return *this;
+					default:
+						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
+							{
+							monitor.raise(Error("Array '[' or compound '{' expected."));
+							return *this;
+							}
 					}
+				break;
 
-				token_in+=ch_in;
-				state_current=state_old;
+			case State::DELIMITER:
+				switch(ch_in)
+					{
+					case ',':
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						if(node_current.array)
+							{
+							nodes.push(node_current);
+							node_current.key.push_back( pathsep() );
+							node_current.key.append( idCreate(node_current.item_count) );
+							node_current.item_count=0;
+							node_current.array=0;
+							state_current=State::COMPOUND_BEGIN;
+							}
+						else
+							{state_current=State::KEY;}
+						break;
+					case '}':
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						if(node_current.array)
+							{monitor.raise(Error("An array must be terminated with ']'."));}
+						break;
+					case ']':
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
+						node_current=nodes.top();
+						nodes.pop();
+						if(!node_current.array)
+							{monitor.raise(Error("A compound must be terminated with '}'."));}
+						++node_current.item_count;
+						break;
+					default:
+						if(!(ch_in>=0 && ch_in<=' '))
+							{
+							monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
+							return *this;
+							}
+					}
 				break;
 			}
 		}
-	if(nodes.size())
+	if(nodes.size()!=0)
 		{monitor.raise(Error("Unterminated block at EOF."));}
 	return *this;
 	}
