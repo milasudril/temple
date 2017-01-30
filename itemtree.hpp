@@ -297,7 +297,9 @@ namespace Temple
 					assert(key!=nullptr);
 					putc('"',sink);
 					write(key,sink,'"','\\');
-					fprintf(sink,"\",%s:",type(t));
+					fputs("\",",sink);
+					fputs(type(t),sink);
+					putc(':',sink);
 					write(value,sink);
 					putc('\n',sink);
 					}

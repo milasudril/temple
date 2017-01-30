@@ -36,7 +36,7 @@ TeMpLe borrows a great deal of its syntax from JSON. The differences to note are
 
  * Keys and values do not need to be surrounded by quotation marks. When there are no quotation marks, all whitespace characters are ignored.
  * A key may be followed by a type identifier. If there is no such identifier, it is assumed that the key represents a compound, or an array of compounds.
- * Ant character following on a line an unquoted, or unescaped '#', is a comment
+ * Any character following on a line an unquoted, or unescaped '#', is a comment
 
 In BNF-like syntax
 
@@ -51,8 +51,27 @@ In BNF-like syntax
 	<compound_array> ::= "[" {<compound_element>} "]"
 	<compound_element> ::= <compound> | ( <compound> "," <compound_element> )
 	<type_id> ::= ("i8"|"i16"|"i32"|"i64"|"f"|"d"|"s")
-	
 
+A compound array can be used to emulate hetrogenous arrays. This construct is internally equivalent to inserting pairs with a sequentially generated key, formatted as 16 hexadecimal digits. To clarify , the following two examples are equivalent:
+
+    [{key,i32:41},{obj,i16:12}]
+
+and
+	
+	{0000000000000000:{key,i32:41},0000000000000001:{obj,i16:12}}
+
+The parser does keep track of the two formats in order to simplify usage, and to make the serialiser write data properly.
+
+Library usage
+-------------
+This library is template-heavy. It is likely that one specialisation works well within a single project. Example usage can be found in `test.cpp`.
+
+### Customisation
+
+ * Some functions requires an exception handler. An exception handler must either throw, or terminate current thread when the raise method is called.
+ * The store method accepts everything that behaves like a `FILE*` opened for writing. Full compatibility is not needed. The only requiremets are presence of the functions `putc` and `fputs`.
+ * When reading data, there has to be a `read` function. For an example, see `test.cpp`. It returns 0 on end of file, and non-zero otherwise.
+ * It is possible to customise the internal storage used by `ItemTree`. The default storage model is found in `itemtree.hpp`. There are two typedefs for strings. The `BufferType` is as temporary storage for the parser. Since it is expected that tokens are shorter than keys, short string optimisation may work better for `BufferType` than the regular `StringType`.
 
 [1]: https://tools.ietf.org/html/rfc7159
 [2]: http://www.digip.org/jansson/
