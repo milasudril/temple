@@ -64,7 +64,7 @@ The parser does keep track of the two formats in order to simplify usage, and to
 
 Library usage
 -------------
-This library is template-heavy. It is likely that one specialisation works well within a single project. Example usage can be found in `test.cpp`.
+This library is template-heavy. It is likely that one specialisation works well within a single project. If you fear code bloat, instanciate it in you I/O module and keep it there. Example usage can be found in `test.cpp`.
 
 ### Customisation
 
