@@ -50,8 +50,22 @@ class Monitor
 		uintmax_t m_col;
 	};
 
-void test(std::vector<int32_t>& v)
+std::string& concat(char a,std::string& b)
 	{
+	b+=a;
+	return b;
+	}
+
+std::string& concat(std::string& a,const char* b)
+	{
+	a+=b;
+	return a;
+	}
+
+std::string& concat(std::string& a,const std::string& b)
+	{
+	a+=b;
+	return a;
 	}
 
 int main()
@@ -98,19 +112,11 @@ int main()
 		 {"a key",s:"A value"}
 		,{"a key",s:"A value 2"}
 	]
-},{property,s:,"empty compound",s:}])EOF";
+},{property,s:,"empty compound":{},"empty array":[]}])EOF";
 
 	Monitor m;
 	try
-		{
-/*		ItemTree<> tree(Reader{R"EOF({objects:
-	{
-		 object_0:{key1,i32:1}
-		,object_1:{foo,s:"bar"}
-		,object_2:{key,i32:2}
-	}
-	,foo,i32:1234
-})EOF"},m);*/
+		{;
 		ItemTree<> tree(Reader{src},m);
 		m.reset();
 
@@ -127,6 +133,11 @@ int main()
 		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
 		assert(TEMPLE_COMPOUND_INSERT(tree,0,"0000000000000001","a compound"));
 		assert(TEMPLE_INSERT_MOVE(tree,42,"0000000000000001","a compound","the answer to the question about universe life and everything"));
+		assert(TEMPLE_ELEMENT_INSERT(tree,0,""));
+		assert(TEMPLE_INSERT_MOVE(tree,137,"0000000000000002","fine-structure constant"));
+
+		auto path_rt=Temple::ItemTree<>::Path("hello").append("world");
+		auto path_rt_2=TEMPLE_BASE_PATH(ItemTree<>,"this","is","a","test").append("runtime data");
 
 		const auto& ctree=tree;
 		const int* cx;

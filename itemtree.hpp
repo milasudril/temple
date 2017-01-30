@@ -40,6 +40,33 @@ namespace Temple
 			static constexpr typename StringType::value_type pathsep() noexcept
 				{return '\001';}
 
+			class Path
+				{
+				public:
+					template<class KeyType>
+					explicit Path(const KeyType& prefix):m_key(prefix.begin())
+						{}
+
+					template<class KeyType>
+					Path& append(const KeyType& path)
+						{return append(path.begin());}
+
+					explicit Path(KeyPointer prefix)
+						{append(prefix);}
+
+					Path& append(KeyPointer ptr)
+						{
+						m_key.push_back(pathsep());
+						m_key.append(ptr);
+						return *this;
+						}
+
+					KeyPointer begin() const noexcept
+						{return m_key.data();}
+				private:
+					Key m_key;
+				};
+
 			ItemTree(const ItemTree&)=delete;
 			ItemTree& operator=(const ItemTree&)=delete;
 
@@ -69,7 +96,6 @@ namespace Temple
 				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,size_t child_count
 					,auto tag,const auto& value)
 					{
-				//	fprintf(stderr,"%s\n",key.c_str());
 					auto level=this->count(key,pathsep());
 					if(level==0)
 						{
@@ -87,10 +113,10 @@ namespace Temple
 						}
 					putc(level==level_prev?',':' ',sink);
 					auto path_end=this->rfind(key,pathsep());
-					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,value,sink);
+					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,child_count,value,sink);
 					level_prev=level;
 					},eh);
-				while(level_prev!=0)
+				while(!close_symb.empty()) //Close all brackets
 					{
 					putc(close_symb.top(),sink);
 					close_symb.pop();
@@ -178,19 +204,19 @@ namespace Temple
 			template<class KeyType>
 			bool elementInsert(const KeyType& parent,bool array)
 				{
-				auto key_tot=Key(parent.begin());
+				auto key_tot=Key(strcmp(parent.begin(),"\001")?parent.begin():"");
 				auto i=m_keys.find(key_tot);
 				if(i==m_keys.end())
 					{return 0;}
-				if(i->second!=Type::COMPOUND_ARRAY)
+				if(i->second.type!=Type::COMPOUND_ARRAY)
 					{return 0;}
 				key_tot+=pathsep();
-			#if 0
-				key_tot+=idCreate(item_count);
-				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY?TYPE::COMPOUND});
-			#else
-				return 0;
-			#endif
+				auto child_count=i->second.child_count;
+				key_tot+=idCreate(child_count);
+				auto ip=m_keys.insert({std::move(key_tot),{array?Type::COMPOUND_ARRAY:Type::COMPOUND,0}});
+				assert(ip.second);
+				++(i->second.child_count);
+				return 1;
 				}
 				
 
@@ -266,7 +292,7 @@ namespace Temple
 			struct RecordWrite
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					putc('"',sink);
@@ -281,7 +307,7 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
@@ -290,8 +316,13 @@ namespace Temple
 						write(key,sink,'"','\\');
 						fputs("\":",sink);
 						}
-					fputs("{\n",sink);
-					close_symb.push('}');
+					if(child_count!=0)
+						{
+						fputs("{\n",sink);
+						close_symb.push('}');
+						}
+					else
+						{fputs("{}\n",sink);}
 					}
 				};
 
@@ -299,7 +330,7 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
@@ -309,8 +340,13 @@ namespace Temple
 						fputs("\":",sink);
 						}
 
-					fputs("[\n",sink);
-					close_symb.push(']');
+					if(child_count!=0)
+						{
+						fputs("[\n",sink);
+						close_symb.push(']');
+						}
+					else
+						{fputs("[]\n",sink);}
 					}
 				};
 
@@ -454,7 +490,6 @@ namespace Temple
 			ArrayPointer<ExceptionHandler> arrayGet(Type type,const Key& key,ExceptionHandler& eh)
 				{
 				type=arraySet(type);
-			//	FIXME increment parent child count
 				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
@@ -477,7 +512,6 @@ namespace Temple
 			template<class ExceptionHandler>
 			void valueSet(Type type,const Key& key,const StringType& value,ExceptionHandler& eh)
 				{
-			//	FIXME increment parent child count
 				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
@@ -572,6 +606,20 @@ namespace Temple
 		return tree_.compoundInsert(TEMPLE_MAKE_ID(path),array_);\
 		}(tree,array)
 
+#define TEMPLE_ELEMENT_INSERT(tree,array,...) \
+	[](auto& tree_,auto array_) \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.elementInsert(TEMPLE_MAKE_ID(path),array_);\
+		}(tree,array)
+
+#define TEMPLE_BASE_PATH(TreeType,...) \
+	[]() \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(Temple::TreeType::pathsep(),__VA_ARGS__); \
+		return Temple::TreeType::Path(TEMPLE_MAKE_ID(path)); \
+		}()
+
 template<class StorageModel>
 template<class Source,class ProgressMonitor>
 Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src,ProgressMonitor& monitor)
@@ -650,6 +698,16 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						node_current.item_count=0;
 						token_in.clear();
 						state_current=State::COMPOUND_BEGIN;
+						break;
+					case '}':
+						if(node_current.item_count)
+							{
+							node_current=nodes.top();
+							nodes.pop();
+							++node_current.item_count;
+							m_keys[node_current.key].child_count=node_current.item_count;
+							}
+						state_current=State::DELIMITER;
 						break;
 
 					default:
@@ -748,6 +806,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						node_current=nodes.top();
 						nodes.pop();
 						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
 						state_current=State::DELIMITER;
 						break;
 					default:
@@ -783,6 +842,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						node_current=nodes.top();
 						nodes.pop();
 						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
 						state_current=State::DELIMITER;
 						break;
 					default:
@@ -900,10 +960,13 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_current=State::COMPOUND_BEGIN;
 						break;
 					case ']':
-						monitor.raise(Error("Empty array of compounds is not allowed."));
-						return *this;
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::DELIMITER;
+						break;
 					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
+						if(!(ch_in>=0 && ch_in<=' '))
 							{
 							monitor.raise(Error("Array '[' or compound '{' expected."));
 							return *this;
@@ -939,6 +1002,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						node_current=nodes.top();
 						nodes.pop();
 						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
 						if(node_current.array)
 							{monitor.raise(Error("An array must be terminated with ']'."));}
 						break;
@@ -950,9 +1014,10 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							}
 						node_current=nodes.top();
 						nodes.pop();
+						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
 						if(!node_current.array)
 							{monitor.raise(Error("A compound must be terminated with '}'."));}
-						++node_current.item_count;
 						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' '))
