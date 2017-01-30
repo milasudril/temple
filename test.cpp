@@ -50,58 +50,73 @@ class Monitor
 		uintmax_t m_col;
 	};
 
-void test(std::vector<int32_t>& v)
+std::string& concat(char a,std::string& b)
 	{
+	b+=a;
+	return b;
+	}
+
+std::string& concat(std::string& a,const char* b)
+	{
+	a+=b;
+	return a;
+	}
+
+std::string& concat(std::string& a,const std::string& b)
+	{
+	a+=b;
+	return a;
 	}
 
 int main()
 	{
 	setlocale(LC_ALL,"");
+
 	const char* src=R"EOF([{
- "\"quotation marks\" in \"key\""i32:1234
-,"bar":
-	{"baz"i64:124380867045036}
-,"foo":
+ "\"quotation marks\" in \"key\"",i32:1234
+,bar:
+	{baz,i64:124380867045036}
+,foo:
 	{
-	 "a string"s:"Hello, World"
-	,"another valid string"s:This\ is\ legal\ too
-	,"bar"i32:[1,2,3,4]
-	,"empty array"i32:[]
+	 "a string",s:"Hello, World"
+	,"another valid string",s:This\ is\ legal\ too
+	,bar,i32:[1,2,3,4]
+	,"empty array",i32:[]
 	,"more objects":
 		{
-		"foo"s:"bar"
-		,"value"d:3.14
-		,"value as float"f:3.14
+		 foo,s:"bar"
+		,value,d:3.14
+		,"value as float",f:3.14
 		}
-	,"xxx"s:"more stuff"
-	,"yyy"s:"more stuff"
+	,xxx,s:"more stuff"
+	,yyy,s:"more stuff"
 	}
-,"goo":{"key"i32:12456}
+,"goo":{key,i32:12456}
 ,"compound array":
 	[
-		 {"a key"s:"A value"}
+		 {"a key",s:"A value"}
 		,{
-		"a key"s:"A value 2"
+		"a key",s:"A value 2"
 		,"array":
 			[
 				{
-				 "bar"i32:2
-				,"foo"i32:"1"
+				 bar,i32:2
+				,foo,i32:"1"
 				}
 			]
 		 }
-		,[{"foo"s:"bar"},{"foo"s:"bar2"}]
+		,[{foo,s:"bar"},{foo,s:"bar2"}]
 	]
 ,"compound array 2":
 	[
-		 {"a key"s:"A value"}
-		,{"a key"s:"A value 2"}
+		 {"a key",s:"A value"}
+		,{"a key",s:"A value 2"}
 	]
-},{"property"s:"value"}])EOF";
+},{property,s:,"empty compound":{},"empty array":[]}])EOF";
 
 	Monitor m;
 	try
-		{
+		{;
 		ItemTree<> tree(Reader{src},m);
 		m.reset();
 
@@ -118,11 +133,16 @@ int main()
 		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
 		assert(TEMPLE_COMPOUND_INSERT(tree,0,"0000000000000001","a compound"));
 		assert(TEMPLE_INSERT_MOVE(tree,42,"0000000000000001","a compound","the answer to the question about universe life and everything"));
+		assert(TEMPLE_ELEMENT_INSERT(tree,0,""));
+		assert(TEMPLE_INSERT_MOVE(tree,137,"0000000000000002","fine-structure constant"));
+
+		auto path_rt=Temple::ItemTree<>::Path("hello").append("world");
+		auto path_rt_2=TEMPLE_BASE_PATH(ItemTree<>,"this","is","a","test").append("runtime data");
 
 		const auto& ctree=tree;
 		const int* cx;
 		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
-		ctree.store(stdout,m);
+		tree.store(stdout,m);
 		}
 	catch(const Temple::Error& error)
 		{

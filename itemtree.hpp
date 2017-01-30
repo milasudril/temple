@@ -40,6 +40,33 @@ namespace Temple
 			static constexpr typename StringType::value_type pathsep() noexcept
 				{return '\001';}
 
+			class Path
+				{
+				public:
+					template<class KeyType>
+					explicit Path(const KeyType& prefix):m_key(prefix.begin())
+						{}
+
+					template<class KeyType>
+					Path& append(const KeyType& path)
+						{return append(path.begin());}
+
+					explicit Path(KeyPointer prefix)
+						{append(prefix);}
+
+					Path& append(KeyPointer ptr)
+						{
+						m_key.push_back(pathsep());
+						m_key.append(ptr);
+						return *this;
+						}
+
+					KeyPointer begin() const noexcept
+						{return m_key.data();}
+				private:
+					Key m_key;
+				};
+
 			ItemTree(const ItemTree&)=delete;
 			ItemTree& operator=(const ItemTree&)=delete;
 
@@ -66,7 +93,8 @@ namespace Temple
 				Locale loc;
 				size_t level_prev=0;
 				std::stack<char> close_symb;
-				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,auto tag,const auto& value)
+				itemsProcess([this,&close_symb,&sink,&level_prev](const auto& key,size_t child_count
+					,auto tag,const auto& value)
 					{
 					auto level=this->count(key,pathsep());
 					if(level==0)
@@ -85,10 +113,10 @@ namespace Temple
 						}
 					putc(level==level_prev?',':' ',sink);
 					auto path_end=this->rfind(key,pathsep());
-					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,value,sink);
+					RecordWrite<decltype(tag)::id>::doIt(close_symb,path_end,child_count,value,sink);
 					level_prev=level;
 					},eh);
-				while(level_prev!=0)
+				while(!close_symb.empty()) //Close all brackets
 					{
 					putc(close_symb.top(),sink);
 					close_symb.pop();
@@ -130,14 +158,18 @@ namespace Temple
 				auto i=m_keys.find(compound);
 				if(i==m_keys.end())
 					{return 0;}
+				if(i->second.type!=Type::COMPOUND)
+					{return 0;}
+				
 				auto key_tot=Key(key.begin());
-				i=m_keys.find(key_tot);
-				if(i!=m_keys.end())
+				auto i2=m_keys.find(key_tot);
+				if(i2!=m_keys.end())
 					{return 0;}
 				static constexpr auto id=IdGet<std::remove_reference_t<T>,StorageModel>::id;
-				i=m_keys.insert({std::move(key_tot),id}).first;
+				i2=m_keys.insert({std::move(key_tot),{id,0}}).first;
 				auto& data=dataGet<id>();
-				data.insert({i->first.c_str(),std::move(value)});
+				data.insert({i2->first.c_str(),std::move(value)});
+				++(i->second.child_count);
 				return 1;
 				}
 
@@ -157,13 +189,14 @@ namespace Temple
 				auto i=m_keys.find(parent);
 				if(i==m_keys.end())
 					{return 0;}
-				if(i->second!=Type::COMPOUND)
+				if(i->second.type!=Type::COMPOUND)
 					{return 0;}
 				auto key_tot=Key(name.begin());
-				i=m_keys.find(key_tot);
-				if(i!=m_keys.end())
+				auto i2=m_keys.find(key_tot);
+				if(i2!=m_keys.end())
 					{return 0;}
-				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY:Type::COMPOUND});
+				m_keys.insert({std::move(key_tot),{array?Type::COMPOUND_ARRAY:Type::COMPOUND,0}});
+				++(i->second.child_count);
 				return 1;
 				}
 
@@ -171,19 +204,19 @@ namespace Temple
 			template<class KeyType>
 			bool elementInsert(const KeyType& parent,bool array)
 				{
-				auto key_tot=Key(parent.begin());
+				auto key_tot=Key(strcmp(parent.begin(),"\001")?parent.begin():"");
 				auto i=m_keys.find(key_tot);
 				if(i==m_keys.end())
 					{return 0;}
-				if(i->second!=Type::COMPOUND_ARRAY)
+				if(i->second.type!=Type::COMPOUND_ARRAY)
 					{return 0;}
 				key_tot+=pathsep();
-			#if 0
-				key_tot+=idCreate(item_count);
-				m_keys.insert({std::move(key_tot),array?Type::COMPOUND_ARRAY?TYPE::COMPOUND});
-			#else
-				return 0;
-			#endif
+				auto child_count=i->second.child_count;
+				key_tot+=idCreate(child_count);
+				auto ip=m_keys.insert({std::move(key_tot),{array?Type::COMPOUND_ARRAY:Type::COMPOUND,0}});
+				assert(ip.second);
+				++(i->second.child_count);
+				return 1;
 				}
 				
 
@@ -259,12 +292,12 @@ namespace Temple
 			struct RecordWrite
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					putc('"',sink);
-					write(key,sink,'"');
-					fprintf(sink,"\"%s:",type(t));
+					write(key,sink,'"','\\');
+					fprintf(sink,"\",%s:",type(t));
 					write(value,sink);
 					putc('\n',sink);
 					}
@@ -274,17 +307,22 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
 						{
 						putc('"',sink);
-						write(key,sink,'"');
+						write(key,sink,'"','\\');
 						fputs("\":",sink);
 						}
-					fputs("{\n",sink);
-					close_symb.push('}');
+					if(child_count!=0)
+						{
+						fputs("{\n",sink);
+						close_symb.push('}');
+						}
+					else
+						{fputs("{}\n",sink);}
 					}
 				};
 
@@ -292,18 +330,23 @@ namespace Temple
 			struct RecordWrite<Type::COMPOUND_ARRAY,dummy>
 				{
 				template<class Sink,class KeyCstr,class Value>
-				static void doIt(std::stack<char>& close_symb,KeyCstr key,const Value& value,Sink& sink)
+				static void doIt(std::stack<char>& close_symb,KeyCstr key,size_t child_count,const Value& value,Sink& sink)
 					{
 					assert(key!=nullptr);
 					if(close_symb.top()=='}')
 						{
 						putc('"',sink);
-						write(key,sink,'"');
+						write(key,sink,'"','\\');
 						fputs("\":",sink);
 						}
 
-					fputs("[\n",sink);
-					close_symb.push(']');
+					if(child_count!=0)
+						{
+						fputs("[\n",sink);
+						close_symb.push(']');
+						}
+					else
+						{fputs("[]\n",sink);}
 					}
 				};
 
@@ -420,8 +463,13 @@ namespace Temple
 				{return i.m_position;}
 
 
-
-			MapType<StringType,Type, std::less<StringType> > m_keys;
+			struct NodeInfo
+				{
+				Type type;
+				size_t child_count;
+				};
+				
+			MapType<StringType,NodeInfo, std::less<StringType> > m_keys;
 
 			template<class T>
 			static ArrayType<T>* get(void* array_pointer) noexcept
@@ -442,7 +490,7 @@ namespace Temple
 			ArrayPointer<ExceptionHandler> arrayGet(Type type,const Key& key,ExceptionHandler& eh)
 				{
 				type=arraySet(type);
-				auto ip=m_keys.insert({key,type});
+				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
 					eh.raise(Error("Key «",key.c_str(),"» already exists."));
@@ -464,7 +512,7 @@ namespace Temple
 			template<class ExceptionHandler>
 			void valueSet(Type type,const Key& key,const StringType& value,ExceptionHandler& eh)
 				{
-				auto ip=m_keys.insert({key,type});
+				auto ip=m_keys.insert({key,{type,0}});
 				if(!ip.second)
 					{
 					eh.raise(Error("Key «",key.c_str(),"» already exists."));
@@ -497,12 +545,12 @@ namespace Temple
 			struct ItemProcessTrampoline
 				{
 				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
-				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
-					,ValueTag x)
+				static inline void go(ItemProcessor& proc,const StringType& key
+					,size_t child_count,IteratorSet& iterators,ValueTag x)
 					{
 					static constexpr auto type_id=decltype(x)::id;
 					auto& j=iteratorGet<type_id>(iterators);
-					proc(key,x,j->second);
+					proc(key,child_count,x,j->second);
 					++j;
 					}
 				};
@@ -511,9 +559,9 @@ namespace Temple
 			struct ItemProcessTrampoline<true,dummy>
 				{
 				template<class ItemProcessor,class StringType,class IteratorSet,class ValueTag>
-				static inline void go(ItemProcessor& proc,const StringType& key,IteratorSet& iterators
+				static inline void go(ItemProcessor& proc,const StringType& key,size_t child_count,IteratorSet& iterators
 					,ValueTag x)
-					{proc(key,x,0);}
+					{proc(key,child_count,x,0);}
 				};
 
 			BufferType idCreate(size_t index)
@@ -558,15 +606,28 @@ namespace Temple
 		return tree_.compoundInsert(TEMPLE_MAKE_ID(path),array_);\
 		}(tree,array)
 
+#define TEMPLE_ELEMENT_INSERT(tree,array,...) \
+	[](auto& tree_,auto array_) \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(tree_.pathsep(),__VA_ARGS__); \
+		return tree_.elementInsert(TEMPLE_MAKE_ID(path),array_);\
+		}(tree,array)
+
+#define TEMPLE_BASE_PATH(TreeType,...) \
+	[]() \
+		{ \
+		static constexpr auto TEMPLE_MAKE_ID(path)=Temple::make_path(Temple::TreeType::pathsep(),__VA_ARGS__); \
+		return Temple::TreeType::Path(TEMPLE_MAKE_ID(path)); \
+		}()
+
 template<class StorageModel>
 template<class Source,class ProgressMonitor>
 Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src,ProgressMonitor& monitor)
 	{
 	enum class State:int
 		{
-		 KEY,ESCAPE,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
-		,ARRAY,VALUE,DELIMITER,KEY_BEGIN,VALUE_STRING
-		,ITEM_STRING
+		 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
+		,ARRAY,KEY_NEXT,VALUE,DELIMITER,VALUE_STRING,ITEM_STRING
 		};
 
 	uintmax_t line_count=1;
@@ -584,7 +645,7 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 		bool array;
 		};
 		
-	Node node_current{"",Type::COMPOUND,0,0};
+	Node node_current{"",Type::I8,0,0};
 	std::stack<Node> nodes;
 	ArrayPointer<ProgressMonitor> array_pointer;
 	
@@ -605,9 +666,121 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 		monitor.positionUpdate(line_count,col_count);
 		switch(state_current)
 			{
+			case State::KEY:
+				switch(ch_in)
+					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '"':
+						state_current=State::KEY_STRING;
+						break;
+					case pathsep():
+						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
+						return *this;
+					case ',':
+						nodes.push(node_current);
+						node_current.key.push_back(pathsep());
+						node_current.key.append(token_in);
+						node_current.item_count=0;
+						token_in.clear();
+						state_current=State::TYPE;
+						break;
+					case ':':
+						nodes.push(node_current);
+						node_current.key.push_back(pathsep());
+						node_current.key.append(token_in);
+						node_current.item_count=0;
+						token_in.clear();
+						state_current=State::COMPOUND_BEGIN;
+						break;
+					case '}':
+						if(node_current.item_count)
+							{
+							node_current=nodes.top();
+							nodes.pop();
+							++node_current.item_count;
+							m_keys[node_current.key].child_count=node_current.item_count;
+							}
+						state_current=State::DELIMITER;
+						break;
+
+					default:
+						if(! (ch_in>=0 && ch_in<=' ') )
+							{token_in.push_back(ch_in);}
+					}
+				break;
+
+			case State::COMMENT:
+				switch(ch_in)
+					{
+					case '\n':
+						state_current=state_old;
+						break;
+					default:
+						break;
+					}
+				break;
+
+			case State::ESCAPE:
+				if(state_old==State::KEY && ch_in==pathsep())
+					{
+					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
+					return *this;
+					}
+
+				token_in+=ch_in;
+				state_current=state_old;
+				break;
+
+			case State::KEY_STRING:
+				switch(ch_in)
+					{
+					case '\\':
+						state_old=state_current;
+						state_current=State::ESCAPE;
+						break;
+					case '"':
+						state_current=State::KEY;
+						break;
+					case pathsep():
+						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
+						return *this;
+					default:
+						token_in.push_back(ch_in);
+					}
+				break;
+
+			case State::TYPE:
+				switch(ch_in)
+					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case ':':
+						node_current.type=type(token_in,monitor);
+						token_in.clear();
+						state_current=State::ARRAY_CHECK;
+						break;
+					default:
+						token_in.push_back(ch_in);
+					}
+				break;
+				
+
 			case State::ARRAY_CHECK:
 				switch(ch_in)
 					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
 					case '{':
 						monitor.raise(Error("A compound has been opened, but current object has "
 							"been declared as '",type(node_current.type),'\''));
@@ -619,112 +792,87 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 					case '"':
 						state_current=State::VALUE_STRING;
 						break;
-					default:
-						token_in+=ch_in;
-						state_current=State::VALUE;
-					}
-				break;
-			case State::COMPOUND_BEGIN:
-				switch(ch_in)
-					{
-					case '{':
-						if(nodes.size() && nodes.top().array)
-							{
-							node_current.key+=pathsep();
-							node_current.key+=idCreate(node_current.item_count);
-							++nodes.top().item_count;
-							}
-						node_current.array=0;
-						node_current.item_count=0;
-						nodes.push(node_current);
-						m_keys[node_current.key]=Type::COMPOUND;
-						state_current=State::KEY_BEGIN;
-						break;
-					case '[':
-						if(nodes.size() && nodes.top().array)
-							{
-							node_current.key+=pathsep();
-							node_current.key+=idCreate(node_current.item_count);
-							++nodes.top().item_count;
-							}
-						node_current.array=1;
-						nodes.push(node_current);
-						m_keys[node_current.key]=Type::COMPOUND_ARRAY;
-						state_current=State::COMPOUND_BEGIN;
-						break;
-					case ']':
-						monitor.raise(Error("Empty array of compounds is not allowed."));
-						return *this;
-					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{
-							monitor.raise(Error("Array '[' or compound '{' expected."));
-							return *this;
-							}
-					}
-				break;
-			case State::KEY_BEGIN:
-				switch(ch_in)
-					{
-					case '"':
+					case ',':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
 						state_current=State::KEY;
 						break;
 					case '}':
-						monitor.raise(Error("Empty compound is not allowed."));
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
+						state_current=State::DELIMITER;
 						break;
 					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
+						if(!(ch_in>=0 && ch_in<=' ') )
 							{
-							monitor.raise(Error("A key must begin with '\"', not '",ch_in,"'."));
-							return *this;
+							token_in.push_back(ch_in);
+							state_current=State::VALUE;
 							}
 					}
 				break;
 
-			case State::KEY:
+			case State::VALUE:
 				switch(ch_in)
 					{
 					case '\\':
 						state_old=state_current;
 						state_current=State::ESCAPE;
 						break;
-					case pathsep():
-						monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
-						return *this;
 					case '"':
-						node_current.key+=pathsep();
-						node_current.key+=token_in;
-						state_current=State::TYPE;
+						state_current=State::VALUE_STRING;
+						break;
+					case ',':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
 						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::KEY;
+						break;
+					case '}':
+						valueSet(node_current.type,node_current.key,token_in,monitor);
+						token_in.clear();
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
+						state_current=State::DELIMITER;
 						break;
 					default:
-						token_in+=ch_in;
+						if(!(ch_in>=0 && ch_in<=' '))
+							{token_in.push_back(ch_in);}
 					}
 				break;
 
-			case State::TYPE:
+			case State::VALUE_STRING:
 				switch(ch_in)
 					{
+					case '\"':
+						state_current=State::VALUE;
+						break;
 					case '\\':
 						state_old=state_current;
 						state_current=State::ESCAPE;
 						break;
-					case ':':
-						node_current.type=type(token_in,monitor);
-						token_in.clear();
-						if(node_current.type==Type::COMPOUND)
-							{state_current=State::COMPOUND_BEGIN;}
-						else
-							{state_current=State::ARRAY_CHECK;}
-						break;
 					default:
-						token_in+=ch_in;
+						token_in.push_back(ch_in);
 					}
 				break;
 
 			case State::ARRAY:
 				switch(ch_in)
 					{
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
 					case '"':
 						state_current=State::ITEM_STRING;
 						break;
@@ -742,98 +890,28 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 							array_pointer.append(array_pointer.m_object,token_in,monitor);
 							token_in.clear();
 							}
-						state_current=State::DELIMITER;
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::KEY_NEXT;
 						break;
 					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{token_in+=ch_in;}
+						if(!(ch_in>=0 && ch_in<=' '))
+							{token_in.push_back(ch_in);}
 					}
 				break;
-
-			case State::DELIMITER:
+			case State::KEY_NEXT:
 				switch(ch_in)
 					{
 					case ',':
-						node_current=nodes.top();
-						if(node_current.array)
-							{state_current=State::COMPOUND_BEGIN;}
-						else
-							{state_current=State::KEY_BEGIN;}
-						break;
-					case '}':
-						state_current=State::DELIMITER;
-						if(nodes.size()==0)
-							{
-							monitor.raise(Error("There is no more block to terminate."));
-							return *this;
-							}
-						node_current=nodes.top();
-						nodes.pop();
-						if(node_current.array)
-							{monitor.raise(Error("An array must be terminated with ']'."));}
-						break;
-					case ']':
-						state_current=State::DELIMITER;
-						if(nodes.size()==0)
-							{
-							monitor.raise(Error("There is no more block to terminate."));
-							return *this;
-							}
-						node_current=nodes.top();
-						nodes.pop();
-						if(!node_current.array)
-							{monitor.raise(Error("A compound must be terminated with '}'."));}
+						state_current=State::KEY;
 						break;
 					default:
 						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
 							{
-							monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
+							monitor.raise(Error("Expected ',' after value array."));
 							return *this;
 							}
-					}
-				break;
-
-			case State::VALUE:
-				switch(ch_in)
-					{
-					case '\\':
-						state_old=state_current;
-						state_current=State::ESCAPE;
-						break;
-					case '"':
-						state_current=State::VALUE_STRING;
-						break;
-					case ',':
-						state_current=State::KEY_BEGIN;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
-						token_in.clear();
-						node_current=nodes.top();
-						break;
-					case '}':
-						state_current=State::DELIMITER;
-						valueSet(node_current.type,node_current.key,token_in,monitor);
-						token_in.clear();
-						node_current=nodes.top();
-						nodes.pop();
-						break;
-					default:
-						if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-							{token_in+=ch_in;}
-					}
-				break;
-
-			case State::VALUE_STRING:
-				switch(ch_in)
-					{
-					case '\"':
-						state_current=State::VALUE;
-						break;
-					case '\\':
-						state_old=state_current;
-						state_current=State::ESCAPE;
-						break;
-					default:
-						token_in+=ch_in;
 					}
 				break;
 
@@ -848,23 +926,110 @@ Temple::ItemTree<StorageModel>& Temple::ItemTree<StorageModel>::load(Source& src
 						state_current=State::ESCAPE;
 						break;
 					default:
-						token_in+=ch_in;
+						token_in.push_back(ch_in);
 					}
 				break;
 
-			case State::ESCAPE:
-				if(state_old==State::KEY && ch_in==pathsep())
+			case State::COMPOUND_BEGIN:
+				switch(ch_in)
 					{
-					monitor.raise(Error('\'',ch_in," cannot be used in keys."));
-					return *this;
+					case '#':
+						state_old=state_current;
+						state_current=State::COMMENT;
+						break;
+					case '{':
+						if(!m_keys.insert({node_current.key,{Type::COMPOUND,0}}).second)
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
+						state_current=State::KEY;
+						break;
+					case '[':
+						if(!m_keys.insert({node_current.key,{Type::COMPOUND_ARRAY,0}}).second)
+							{
+							monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
+							return *this;
+							}
+						node_current.array=1;
+						nodes.push(node_current);
+						node_current.key.push_back( pathsep() );
+						node_current.key.append( idCreate(node_current.item_count) );
+						node_current.item_count=0;
+						node_current.array=0;
+						state_current=State::COMPOUND_BEGIN;
+						break;
+					case ']':
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						state_current=State::DELIMITER;
+						break;
+					default:
+						if(!(ch_in>=0 && ch_in<=' '))
+							{
+							monitor.raise(Error("Array '[' or compound '{' expected."));
+							return *this;
+							}
 					}
+				break;
 
-				token_in+=ch_in;
-				state_current=state_old;
+			case State::DELIMITER:
+				switch(ch_in)
+					{
+					case ',':
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						if(node_current.array)
+							{
+							nodes.push(node_current);
+							node_current.key.push_back( pathsep() );
+							node_current.key.append( idCreate(node_current.item_count) );
+							node_current.item_count=0;
+							node_current.array=0;
+							state_current=State::COMPOUND_BEGIN;
+							}
+						else
+							{state_current=State::KEY;}
+						break;
+					case '}':
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
+						if(node_current.array)
+							{monitor.raise(Error("An array must be terminated with ']'."));}
+						break;
+					case ']':
+						if(nodes.size()==0)
+							{
+							monitor.raise(Error("There is no more block to terminate."));
+							return *this;
+							}
+						node_current=nodes.top();
+						nodes.pop();
+						++node_current.item_count;
+						m_keys[node_current.key].child_count=node_current.item_count;
+						if(!node_current.array)
+							{monitor.raise(Error("A compound must be terminated with '}'."));}
+						break;
+					default:
+						if(!(ch_in>=0 && ch_in<=' '))
+							{
+							monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
+							return *this;
+							}
+					}
 				break;
 			}
 		}
-	if(nodes.size())
+	if(nodes.size()!=0)
 		{monitor.raise(Error("Unterminated block at EOF."));}
 	return *this;
 	}
@@ -881,12 +1046,13 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	while(i!=i_end)
 		{
 		auto& key=i->first;
+		auto child_count=i->second.child_count;
 		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
-		(i->second,[&key,&iterators,this,&proc](auto x)
+		(i->second,[&key,&iterators,this,&proc,child_count](auto x)
 			{
 			static constexpr auto type_id=decltype(x)::id;
 			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
-				::go(proc,key,iterators,x);
+				::go(proc,key,child_count,iterators,x);
 			},eh);
 		++i;
 		}
@@ -904,12 +1070,13 @@ void Temple::ItemTree<StorageModel>::itemsProcess(ItemProcessor&& proc,Exception
 	while(i!=i_end)
 		{
 		auto& key=i->first;
+		auto child_count=i->second.child_count;
 		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>
-		(i->second,[&key,&iterators,this,&proc](auto x)
+		(i->second.type,[&key,&iterators,this,&proc,child_count](auto x)
 			{
 			static constexpr auto type_id=decltype(x)::id;
 			ItemProcessTrampoline<arrayUnset(type_id)==Type::COMPOUND>
-				::go(proc,key,iterators,x);
+				::go(proc,key,child_count,iterators,x);
 			},eh);
 		++i;
 		}
