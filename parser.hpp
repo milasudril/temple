@@ -3,12 +3,30 @@
 
 #include "item.hpp"
 #include "converters.hpp"
+#include <clocale>
+#include <stack>
 
 namespace Temple
 	{
+	struct Locale
+		{
+		Locale():m_handle(newlocale(LC_ALL,"C",0))
+			{m_loc_old=uselocale(m_handle);}
+		~Locale()
+			{
+			uselocale(m_loc_old);
+			freelocale(m_handle);
+			}
+
+		locale_t m_handle;
+		locale_t m_loc_old;
+		};
+
 	template<class StorageModel,class Source,class ProgressMonitor,class BufferType>
 	ItemBase<StorageModel>* temple_load(Source& src,ProgressMonitor& monitor)
 		{
+		using KeyType=typename StorageModel::KeyType;
+
 		enum class State:int
 			{
 			 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
@@ -24,7 +42,7 @@ namespace Temple
 
 		struct Node
 			{
-			StringType key;
+			KeyType key;
 			Type type;
 			size_t item_count;
 			bool array;
