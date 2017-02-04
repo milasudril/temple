@@ -7,7 +7,7 @@
 #include <clocale>
 #include <cinttypes>
 #include <algorithm>
-
+#if 0
 using namespace Temple;
 
 struct Reader
@@ -150,3 +150,4 @@ int main()
 		}
 	return 0;
 	}
+#endif

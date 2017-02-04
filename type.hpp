@@ -39,8 +39,8 @@ namespace Temple
 		{return static_cast<Type>(static_cast<int>(t) - 1);}
 
 
-
-
+	template<class StorageModel>
+	class ItemBase;
 
 	template<Type t,class StorageModel>
 	struct TypeGet
@@ -200,8 +200,15 @@ namespace Temple
 	struct TypeGet<Type::COMPOUND,StorageModel>
 		{
 		static constexpr auto id=Type::COMPOUND;
-		typedef void type;
+		typedef typename StorageModel::template MapType<StorageModel::KeyType,ItemBase<StorageModel>*> type;
 		static constexpr auto name=stringconst("");
+		};
+
+	template<class StorageModel>
+	struct IdGet<typename StorageModel::MapType,StorageModel>
+		{
+		static constexpr auto id=Type::COMPOUND;
+		typedef typename StorageModel::template MapType<StorageModel::KeyType,ItemBase<StorageModel>*> type;
 		};
 
 
