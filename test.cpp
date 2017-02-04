@@ -7,9 +7,10 @@
 #include <clocale>
 #include <cinttypes>
 #include <algorithm>
-#if 0
+
 using namespace Temple;
 
+#if 0
 struct Reader
 	{
 	const char* r_src;
@@ -67,7 +68,7 @@ std::string& concat(std::string& a,const std::string& b)
 	a+=b;
 	return a;
 	}
-
+#endif
 int main()
 	{
 	setlocale(LC_ALL,"");
@@ -114,11 +115,11 @@ int main()
 	]
 },{property,s:,"empty compound":{},"empty array":[]}])EOF";
 
-	Monitor m;
+//	Monitor m;
 	try
 		{;
-		ItemTree<> tree(Reader{src},m);
-		m.reset();
+		ItemTree<> tree;
+/*		m.reset();
 
 		Temple::ItemTree<>::StringType* ret;
 		assert(TEMPLE_FIND(tree,ret,   "0000000000000001","property"));
@@ -142,12 +143,11 @@ int main()
 		const auto& ctree=tree;
 		const int* cx;
 		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
-		tree.store(stdout,m);
+		tree.store(stdout,m);*/
 		}
 	catch(const Temple::Error& error)
 		{
-		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
+//		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
 		}
 	return 0;
 	}
-#endif
