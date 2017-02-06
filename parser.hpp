@@ -1,3 +1,5 @@
+//@	{"targets":[{"name":"parser.hpp","type":"include"}]}
+
 #ifndef TEMPLE_PARSER_HPP
 #define TEMPLE_PARSER_HPP
 
@@ -8,50 +10,145 @@
 
 namespace Temple
 	{
-	struct Locale
+	namespace
 		{
-		Locale():m_handle(newlocale(LC_ALL,"C",0))
-			{m_loc_old=uselocale(m_handle);}
-		~Locale()
+		struct Locale
 			{
-			uselocale(m_loc_old);
-			freelocale(m_handle);
+			Locale():m_handle(newlocale(LC_ALL,"C",0))
+				{m_loc_old=uselocale(m_handle);}
+			~Locale()
+				{
+				uselocale(m_loc_old);
+				freelocale(m_handle);
+				}
+
+			locale_t m_handle;
+			locale_t m_loc_old;
+			};
+#if 0
+	//SFINAE for detecting a map
+		struct has_not_member{};
+
+		struct has_member:public has_not_member{};
+
+		template<class X> struct member_test
+			{typedef int type;};
+
+		template<class T,typename member_test<typename T::mapped_type>::type=0>
+		static constexpr bool test_mapped_type(has_member)
+			{return 1;}
+
+		template<class T>
+		static constexpr bool test_mapped_type(has_not_member)
+			{return 0;}
+
+		template <class T>
+		struct IsMap
+			{static constexpr bool value=test_mapped_type<T>(has_member{});};
+
+		template<class T,std::enable_if_t<IsMap<T>::value,int> x=0>
+		void doStuff()
+			{
+			printf("This is a map\n");
 			}
 
-		locale_t m_handle;
-		locale_t m_loc_old;
-		};
+		template<class T,std::enable_if_t<!IsMap<T>::value,int> x=0>
+		void doStuff()
+			{
+			printf("This is not a map\n");
+			}
 
-	template<class StorageModel,class Source,class ProgressMonitor,class BufferType>
+
+		template<class T,class StorageModel,class Node,class ExceptionHandler
+			,std::enable_if_t< std::is_same<T,typename StorageModel::MapType> > x=0>
+		void append(ItemBase<StorageModel>& item,Node&& node,ExceptionHandler& eh)
+			{
+			if(!item.template value<T>().insert({std::move(node.key), std::move(node.item)}).second)
+				{eh.raise(Error("Double key"));}
+			}
+
+		template<class T,class StorageModel,class Node,class ExceptionHandler
+			,std::enable_if_t< std::is_same<T,typename StorageModel::ArrayType> > x=0>
+		void append(ItemBase<StorageModel>& item,Node&& node,ExceptionHandler& eh)
+			{item.template value<T>().push_back(convert<T>(node.value));}
+#endif
+
+	//	Array append functions
+
+		template<class T,class StorageModel,class BufferType,class ExceptionHandler>
+		void append(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh)
+			{
+			using value_type=typename TypeGet<arraySet(IdGet<T,StorageModel>::id),StorageModel>::type;
+			item.template value<T>().push_back(convert<value_type>(buffer,eh));
+			}
+
+		template<class StorageModel,class BufferType,class ExceptionHandler>
+		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
+
+		template<class StorageModel,class BufferType,class ExceptionHandler>
+		auto appendFunction(Type type)
+			{
+			AppendFunc<StorageModel,BufferType,ExceptionHandler> ret;
+			for_type<StorageModel,Type::I8_ARRAY,2,Type::COMPOUND_ARRAY>(type,[&ret](auto tag)
+				{
+				using T=typename decltype(auto)::type;
+				ret=append<T,StorageModel,BufferType,ExceptionHandler>;
+				});
+			return ret;
+			}
+
+	//	Item assignment. Only used for single values
+		template<class StorageModel,class BufferType,class ExceptionHandler>
+		void valueSet(Type type,ItemBase<StorageModel>& item,const BufferType& value,ExceptionHandler& eh)
+			{
+			for_type<StorageModel,Type::I8,2,Type::COMPOUND>(type,[&item,&value,&eh](auto tag)
+				{
+				using T=typename decltype(auto)::type;
+				item.template value<T>()=convert(value,eh);
+				});
+			}
+
+	//	Item insertion (into map)
+		template<class MapType,class BufferType,class ItemType,class ExceptionHandler>
+		void itemInsert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
+			{
+			if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
+				{eh.raise(Error("Key ",key.c_str()," already exists in the current node."));}
+			}
+		}
+
+
+	template<class StorageModel,class BufferType,class Source,class ProgressMonitor>
 	ItemBase<StorageModel>* temple_load(Source& src,ProgressMonitor& monitor)
 		{
-		using KeyType=typename StorageModel::KeyType;
+		using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
 
 		enum class State:int
 			{
-			 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND_BEGIN,ARRAY_CHECK
-			,ARRAY,KEY_NEXT,VALUE,DELIMITER,VALUE_STRING,ITEM_STRING
+			 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND,VALUE_ARRAY_CHECK
+			,VALUE_ARRAY,VALUE,VALUE_STRING,ITEM_STRING
 			};
 
 		uintmax_t line_count=1;
 		uintmax_t col_count=0;
-		auto state_current=State::COMPOUND_BEGIN;
+		auto state_current=State::COMPOUND;
 		auto state_old=state_current;
-		BufferType token_in;
+		
 		Locale loc;
 
 		struct Node
 			{
-			KeyType key;
-			Type type;
-			size_t item_count;
-			bool array;
+			BufferType key;
+			ItemBase<StorageModel>* item;
+			AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
 			};
 			
-		Node node_current{"",Type::I8,0,0};
+		auto type_current=Type::COMPOUND;
+		BufferType key_current;
+		BufferType token_in;
+
+		Node node_current{BufferType(""),nullptr};
 		std::stack<Node> nodes;
-		ArrayPointer<ProgressMonitor> array_pointer;
-		
 
 	//	Do not call feof, since that function expects that the caller
 	//	has tried to read data first. This is not compatible with API:s 
@@ -83,34 +180,19 @@ namespace Temple
 						case '"':
 							state_current=State::KEY_STRING;
 							break;
-						case pathsep():
-							monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
-							return *this;
 						case ',':
-							nodes.push(node_current);
-							node_current.key.push_back(pathsep());
-							node_current.key.append(token_in);
-							node_current.item_count=0;
+							key_current=token_in;
 							token_in.clear();
 							state_current=State::TYPE;
 							break;
 						case ':':
-							nodes.push(node_current);
-							node_current.key.push_back(pathsep());
-							node_current.key.append(token_in);
-							node_current.item_count=0;
+							key_current=token_in;
+							type_current=Type::COMPOUND;
 							token_in.clear();
-							state_current=State::COMPOUND_BEGIN;
+							state_current=State::COMPOUND;
 							break;
 						case '}':
-							if(node_current.item_count)
-								{
-								node_current=nodes.top();
-								nodes.pop();
-								++node_current.item_count;
-								m_keys[node_current.key].child_count=node_current.item_count;
-								}
-							state_current=State::DELIMITER;
+							state_current=State::COMPOUND;
 							break;
 
 						default:
@@ -131,12 +213,6 @@ namespace Temple
 					break;
 
 				case State::ESCAPE:
-					if(state_old==State::KEY && ch_in==pathsep())
-						{
-						monitor.raise(Error('\'',ch_in," cannot be used in keys."));
-						return *this;
-						}
-
 					token_in+=ch_in;
 					state_current=state_old;
 					break;
@@ -151,9 +227,6 @@ namespace Temple
 						case '"':
 							state_current=State::KEY;
 							break;
-						case pathsep():
-							monitor.raise(Error('\'',pathsep(),"' cannot be used in keys."));
-							return *this;
 						default:
 							token_in.push_back(ch_in);
 						}
@@ -167,9 +240,10 @@ namespace Temple
 							state_current=State::COMMENT;
 							break;
 						case ':':
-							node_current.type=type(token_in,monitor);
+							type_current=type(token_in,monitor);
 							token_in.clear();
-							state_current=State::ARRAY_CHECK;
+							state_current=type_current==Type::COMPOUND?
+								State::COMPOUND : State::VALUE_ARRAY_CHECK;
 							break;
 						default:
 							token_in.push_back(ch_in);
@@ -177,40 +251,29 @@ namespace Temple
 					break;
 					
 
-				case State::ARRAY_CHECK:
+				case State::VALUE_ARRAY_CHECK:
 					switch(ch_in)
 						{
 						case '#':
 							state_old=state_current;
 							state_current=State::COMMENT;
 							break;
-						case '{':
-							monitor.raise(Error("A compound has been opened, but current object has "
-								"been declared as '",type(node_current.type),'\''));
-							return *this;
 						case '[':
-							state_current=State::ARRAY;
-							array_pointer=arrayGet(node_current.type,node_current.key,monitor);
+							type_current=arraySet(type_current);
+							state_current=State::VALUE_ARRAY;
 							break;
 						case '"':
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
-							valueSet(node_current.type,node_current.key,token_in,monitor);
-							token_in.clear();
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
 							state_current=State::KEY;
 							break;
 						case '}':
-							valueSet(node_current.type,node_current.key,token_in,monitor);
-							token_in.clear();
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							m_keys[node_current.key].child_count=node_current.item_count;
-							state_current=State::DELIMITER;
+							itemInsert(node_current.item->template value<MapType>()
+								,key_current
+								,itemCreate<StorageModel>(type_current,token_in,monitor)
+								,monitor);
+							state_current=State::COMPOUND;
 							break;
 						default:
 							if(!(ch_in>=0 && ch_in<=' ') )
@@ -232,21 +295,10 @@ namespace Temple
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
-							valueSet(node_current.type,node_current.key,token_in,monitor);
-							token_in.clear();
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
 							state_current=State::KEY;
 							break;
 						case '}':
-							valueSet(node_current.type,node_current.key,token_in,monitor);
-							token_in.clear();
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							m_keys[node_current.key].child_count=node_current.item_count;
-							state_current=State::DELIMITER;
+							state_current=State::COMPOUND;
 							break;
 						default:
 							if(!(ch_in>=0 && ch_in<=' '))
@@ -269,7 +321,7 @@ namespace Temple
 						}
 					break;
 
-				case State::ARRAY:
+				case State::VALUE_ARRAY:
 					switch(ch_in)
 						{
 						case '#':
@@ -284,37 +336,15 @@ namespace Temple
 							state_current=State::ESCAPE;
 							break;
 						case ',':
-							array_pointer.append(array_pointer.m_object,token_in,monitor);
-							token_in.clear();
+							state_current=State::VALUE_ARRAY;
 							break;
 						case ']':
-							if(token_in.size()!=0)
-								{	
-								array_pointer.append(array_pointer.m_object,token_in,monitor);
-								token_in.clear();
-								}
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							state_current=State::KEY_NEXT;
+							state_current=State::COMPOUND;
 							break;
+
 						default:
 							if(!(ch_in>=0 && ch_in<=' '))
 								{token_in.push_back(ch_in);}
-						}
-					break;
-				case State::KEY_NEXT:
-					switch(ch_in)
-						{
-						case ',':
-							state_current=State::KEY;
-							break;
-						default:
-							if(!(ch_in>=0 && ch_in<=' ')) //Eat whitespace
-								{
-								monitor.raise(Error("Expected ',' after value array."));
-								return *this;
-								}
 						}
 					break;
 
@@ -322,7 +352,7 @@ namespace Temple
 					switch(ch_in)
 						{
 						case '\"':
-							state_current=State::ARRAY;
+							state_current=State::VALUE_ARRAY;
 							break;
 						case '\\':
 							state_old=state_current;
@@ -333,7 +363,7 @@ namespace Temple
 						}
 					break;
 
-				case State::COMPOUND_BEGIN:
+				case State::COMPOUND:
 					switch(ch_in)
 						{
 						case '#':
@@ -341,92 +371,30 @@ namespace Temple
 							state_current=State::COMMENT;
 							break;
 						case '{':
-							if(!m_keys.insert({node_current.key,{Type::COMPOUND,0}}).second)
-								{
-								monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
-								return *this;
-								}
 							state_current=State::KEY;
 							break;
 						case '[':
-							if(!m_keys.insert({node_current.key,{Type::COMPOUND_ARRAY,0}}).second)
-								{
-								monitor.raise(Error("Key «",node_current.key.c_str(),"» already exists."));
-								return *this;
-								}
-							node_current.array=1;
-							nodes.push(node_current);
-							node_current.key.push_back( pathsep() );
-							node_current.key.append( idCreate(node_current.item_count) );
-							node_current.item_count=0;
-							node_current.array=0;
-							state_current=State::COMPOUND_BEGIN;
-							break;
-						case ']':
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							state_current=State::DELIMITER;
-							break;
-						default:
-							if(!(ch_in>=0 && ch_in<=' '))
-								{
-								monitor.raise(Error("Array '[' or compound '{' expected."));
-								return *this;
-								}
-						}
-					break;
-
-				case State::DELIMITER:
-					switch(ch_in)
-						{
-						case ',':
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							if(node_current.array)
-								{
-								nodes.push(node_current);
-								node_current.key.push_back( pathsep() );
-								node_current.key.append( idCreate(node_current.item_count) );
-								node_current.item_count=0;
-								node_current.array=0;
-								state_current=State::COMPOUND_BEGIN;
-								}
-							else
-								{state_current=State::KEY;}
+							type_current=arraySet(type_current);
+							state_current=State::COMPOUND;
 							break;
 						case '}':
-							if(nodes.size()==0)
-								{
-								monitor.raise(Error("There is no more block to terminate."));
-								return *this;
-								}
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							m_keys[node_current.key].child_count=node_current.item_count;
-							if(node_current.array)
-								{monitor.raise(Error("An array must be terminated with ']'."));}
+						//Error if array
+							state_current=State::COMPOUND;
 							break;
 						case ']':
-							if(nodes.size()==0)
-								{
-								monitor.raise(Error("There is no more block to terminate."));
-								return *this;
-								}
-							node_current=nodes.top();
-							nodes.pop();
-							++node_current.item_count;
-							m_keys[node_current.key].child_count=node_current.item_count;
-							if(!node_current.array)
-								{monitor.raise(Error("A compound must be terminated with '}'."));}
+						//Error if not array
+							state_current=State::COMPOUND;
 							break;
+						case ',':
+						//KEY or COMPOUND (depending on array)
+							state_current=State::COMPOUND;
+							break;
+
 						default:
 							if(!(ch_in>=0 && ch_in<=' '))
 								{
-								monitor.raise(Error('\'',ch_in," is an invalid delimiter."));
-								return *this;
+								monitor.raise(Error("Illegal character '",ch_in,"'."));
+								return nullptr; //FIXME
 								}
 						}
 					break;
@@ -434,7 +402,7 @@ namespace Temple
 			}
 		if(nodes.size()!=0)
 			{monitor.raise(Error("Unterminated block at EOF."));}
-		return *this;
+		return node_current.item;
 		}
 	}
 

@@ -1,0 +1,14 @@
+digraph "G"
+	{
+	Key -> Type
+	Key -> Compound
+	Type-> "Value array check"
+	"Value array check" -> "Value array"
+	"Value array check" -> Key
+	"Value array check" -> Compound
+	"Value array check" -> Value
+	Value -> Key
+	Value -> Compound
+	"Value array"-> Compound
+	Compound -> Key
+	}

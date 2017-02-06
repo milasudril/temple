@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <type_traits>
+#include <memory>
 
 namespace Temple
 	{
@@ -200,15 +201,15 @@ namespace Temple
 	struct TypeGet<Type::COMPOUND,StorageModel>
 		{
 		static constexpr auto id=Type::COMPOUND;
-		typedef typename StorageModel::template MapType<StorageModel::KeyType,ItemBase<StorageModel>*> type;
+		typedef typename StorageModel::template MapType<std::unique_ptr< ItemBase<StorageModel> >> type;
 		static constexpr auto name=stringconst("");
 		};
 
 	template<class StorageModel>
-	struct IdGet<typename StorageModel::MapType,StorageModel>
+	struct IdGet<typename StorageModel::template MapType<std::unique_ptr<ItemBase<StorageModel>>>,StorageModel>
 		{
 		static constexpr auto id=Type::COMPOUND;
-		typedef typename StorageModel::template MapType<StorageModel::KeyType,ItemBase<StorageModel>*> type;
+		typedef typename StorageModel::template MapType<std::unique_ptr< ItemBase<StorageModel> >> type;
 		};
 
 
@@ -216,8 +217,8 @@ namespace Temple
 	template<Type t,int x,Type t_end,class StorageModel,bool cont>
 	struct TypeProcess
 		{
-		template<class Callback,class ExceptionHandler>
-		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
+		template<class Callback>
+		static void doIt(Type type,Callback& cb)
 			{	
 			if(t==type)
 				{
@@ -227,7 +228,7 @@ namespace Temple
 				{
 				static constexpr auto t_next=step(t,x);
 				static constexpr bool cont_next=static_cast<int>(t_next) <= static_cast<int>(t_end);
-				TypeProcess<t_next,x,t_end,StorageModel,cont_next>::doIt(type,cb,eh);
+				TypeProcess<t_next,x,t_end,StorageModel,cont_next>::doIt(type,cb);
 				}
 			}
 		};
@@ -235,17 +236,14 @@ namespace Temple
 	template<Type t,int x,Type t_end,class StorageModel>
 	struct TypeProcess<t,x,t_end,StorageModel,0>
 		{
-		template<class Callback,class ExceptionHandler>
-		static void doIt(Type type,Callback& cb,ExceptionHandler& eh)
-			{
-			eh.raise(Error("Internal error: Type not found."));
-			abort();
-			}
+		template<class Callback>
+		static void doIt(Type type,Callback& cb)
+			{assert(0!=0);}
 		};
 
-	template<class StorageModel,Type start,int x,Type end,class Callback,class ExceptionHandler>
-	inline void for_type(Type type,Callback&& cb,ExceptionHandler& eh) 
-		{TypeProcess<start,x,end,StorageModel,1>::doIt(type,cb,eh);}
+	template<class StorageModel,Type start,int x,Type end,class Callback>
+	inline void for_type(Type type,Callback&& cb) 
+		{TypeProcess<start,x,end,StorageModel,1>::doIt(type,cb);}
 
 	template<class StringType,class ExceptionHandler>
 	inline Type type(const StringType& str,ExceptionHandler& eh)
@@ -260,10 +258,12 @@ namespace Temple
 			{return Type::I32;}
 		if(str=="i64")
 			{return Type::I64;}
-		if(str=="f")
+		if(str=="f32")
 			{return Type::FLOAT;}
-		if(str=="d")
+		if(str=="f64")
 			{return Type::DOUBLE;}
+		if(str=="comp")
+			{return Type::COMPOUND;}
 		eh.raise(Error("The type identifier ",str.c_str()," does not correspond to a known type."));
 		abort();
 		}
@@ -281,13 +281,13 @@ namespace Temple
 			case Type::I64:
 				return "i64";
 			case Type::FLOAT:
-				return "f";
+				return "f32";
 			case Type::DOUBLE:
-				return "d";
+				return "f64";
 			case Type::STRING:
 				return "s";
 			case Type::COMPOUND:
-				return "";
+				return "comp";
 			default:
 				assert(1!=1);
 				return nullptr;

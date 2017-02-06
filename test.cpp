@@ -10,7 +10,7 @@
 
 using namespace Temple;
 
-#if 0
+
 struct Reader
 	{
 	const char* r_src;
@@ -68,7 +68,7 @@ std::string& concat(std::string& a,const std::string& b)
 	a+=b;
 	return a;
 	}
-#endif
+
 int main()
 	{
 	setlocale(LC_ALL,"");
@@ -115,10 +115,10 @@ int main()
 	]
 },{property,s:,"empty compound":{},"empty array":[]}])EOF";
 
-//	Monitor m;
+	Monitor m;
 	try
 		{;
-		ItemTree<> tree;
+		ItemTree<> tree(Reader{src},m);
 /*		m.reset();
 
 		Temple::ItemTree<>::StringType* ret;
@@ -147,7 +147,7 @@ int main()
 		}
 	catch(const Temple::Error& error)
 		{
-//		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
+		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
 		}
 	return 0;
 	}

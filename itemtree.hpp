@@ -21,8 +21,8 @@ namespace Temple
 
 		using KeyType=std::string;
 
-		template<class Key,class Value>
-		using MapType=std::map<Key,Value>;
+		template<class ItemType>
+		using MapType=std::map<KeyType,ItemType>;
 		};
 
 	template<class StorageModel=BasicStorage>
@@ -30,7 +30,8 @@ namespace Temple
 		{
 		public:
 			template<class Source,class ProgressMonitor,class BufferType=std::string>
-			ItemTree(Source&& src,Monitor&& m):m_root(temple_load<StorageModel,BufferType>(src,m))
+			ItemTree(Source&& src,ProgressMonitor&& m):
+				m_root(temple_load<StorageModel,BufferType>(src,m))
 				{}
 
 		private:

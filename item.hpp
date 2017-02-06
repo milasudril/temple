@@ -1,8 +1,13 @@
+//@	{"targets":[{"name":"item.hpp","type":"include"}]}
+
 #ifndef TEMPLE_ITEM_HPP
 #define TEMPLE_ITEM_HPP
 
 #include "type.hpp"
+#include "converters.hpp"
 #include <utility>
+#include <memory>
+#include <cassert>
 
 namespace Temple
 	{
@@ -30,11 +35,24 @@ namespace Temple
 
 			template<class T>
 			T& value() noexcept
-				{return const_cast<T*>(const_cast<const ItemBase*>(this))->value();}
+				{
+				assert(has<T>());
+				auto self=reinterpret_cast<Item<T,StorageModel>*>(this);
+				return self->value();
+				}
+
+			~ItemBase()
+				{
+				for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>(m_type,[this](auto tag)
+					{
+					using T=typename decltype(tag)::type;
+				//	Yes, we must call DTOR here, since the subclass is never used directly.
+					this->value<T>().~T();
+					});
+				}
 
 		protected:
-			template<class T>
-			ItemBase() noexcept:m_type(IdGet<T,StorageModel>::id)
+			ItemBase(Type type) noexcept:m_type(type)
 				{}
 
 		private:
@@ -47,9 +65,8 @@ namespace Temple
 		public:
 			typedef T value_type;
 
-			explicit Item(T&& value) noexcept:ItemBase<StorageModel>()
-				,m_value(std::move(value))
-				{}
+			static std::unique_ptr<ItemBase<StorageModel>> create()
+				{return std::unique_ptr<ItemBase<StorageModel>>(new Item);}
 
 			const value_type& value() const noexcept
 				{return m_value;}
@@ -58,7 +75,34 @@ namespace Temple
 				{return m_value;}
 
 		private:
+			explicit Item() noexcept:ItemBase<StorageModel>(IdGet<T,StorageModel>::id){}
 			T m_value;
 		};
+
+	template<class StorageModel>
+	auto itemCreate(Type type)
+		{
+		std::unique_ptr<ItemBase<StorageModel>> ret;
+		for_type<StorageModel,Type::I8,1,Type::COMPOUND_ARRAY>(type,[&ret](auto tag)
+			{
+			using T=typename decltype(tag)::type;
+			ret=Item<T,StorageModel>::create();
+			});
+		return std::move(ret);
+		}
+
+	template<class StorageModel,class BufferType,class ExceptionHandler>
+	auto itemCreate(Type type,const BufferType& value,ExceptionHandler& eh)
+		{
+		std::unique_ptr<ItemBase<StorageModel>> ret;
+		for_type<StorageModel,Type::I8,2,Type::STRING>(type,[&ret,&value,&eh](auto tag)
+			{
+			using T=typename decltype(tag)::type;
+			ret=Item<T,StorageModel>::create();
+			ret->template value<T>()=convert<T>(value,eh);
+			});
+		return std::move(ret);
+		}
 	}
+
 #endif
