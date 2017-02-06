@@ -97,12 +97,26 @@ namespace Temple
 			return ret;
 			}
 
+		template<class ArrayType,class ItemType>
+		auto append(ArrayType& array,ItemType&& item)
+			{
+			auto ret=item.get();
+			array.push_back(std::move(item));
+			return ret;
+			}
+
+
 	//	Item insertion (into map)
 		template<class MapType,class BufferType,class ItemType,class ExceptionHandler>
-		void itemInsert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
+		auto insert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
 			{
+			auto ret=item.get();
 			if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
-				{eh.raise(Error("Key ",key.c_str()," already exists in the current node."));}
+				{
+				eh.raise(Error("Key ",key.c_str()," already exists in the current node."));
+				ret=nullptr;
+				}
+			return ret;
 			}
 		}
 
@@ -111,6 +125,8 @@ namespace Temple
 	ItemBase<StorageModel>* temple_load(Source& src,ProgressMonitor& monitor)
 		{
 		using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+
+		using CompoundArray=typename StorageModel::template ArrayType<MapType>;
 
 		enum class State:int
 			{
@@ -125,23 +141,16 @@ namespace Temple
 		
 		Locale loc;
 
-		struct Node
-			{
-			BufferType key;
-			ItemBase<StorageModel>* item;
-			AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
-			};
-			
+		
 		auto type_current=Type::COMPOUND;
 
 		BufferType key_current;
 		
 		std::unique_ptr<ItemBase<StorageModel>> item_current;
 		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
-		
 
-		Node node_current{BufferType(""),nullptr};
-		std::stack<Node> nodes;
+		ItemBase<StorageModel>* node_current;
+		std::stack<ItemBase<StorageModel>*> nodes;
 
 	//	Do not call feof, since that function expects that the caller
 	//	has tried to read data first. This is not compatible with API:s 
@@ -186,7 +195,7 @@ namespace Temple
 							state_current=State::COMPOUND;
 							break;
 						case '}':
-							itemInsert(node_current.item->template value<MapType>()
+							insert(node_current->template value<MapType>()
 								,key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
@@ -270,7 +279,7 @@ namespace Temple
 							state_current=State::KEY;
 							break;
 						case '}':
-							itemInsert(node_current.item->template value<MapType>()
+							insert(node_current->template value<MapType>()
 								,key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
@@ -297,14 +306,14 @@ namespace Temple
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
-							itemInsert(node_current.item->template value<MapType>()
+							insert(node_current->template value<MapType>()
 								,key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
 							state_current=State::KEY;
 							break;
 						case '}':
-							itemInsert(node_current.item->template value<MapType>()
+							insert(node_current->template value<MapType>()
 								,key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
@@ -352,7 +361,7 @@ namespace Temple
 							break;
 						case ']':
 							append_func(*item_current.get(),token_in,monitor);
-							itemInsert(node_current.item->template value<MapType>()
+							insert(node_current->template value<MapType>()
 								,key_current,item_current,monitor);
 							state_current=State::KEY;
 							break;
@@ -386,15 +395,41 @@ namespace Temple
 							state_current=State::COMMENT;
 							break;
 						case '{':
+							nodes.push(node_current);
+							if(node_current->array())
+								{
+							/*	node_current=append(node_current->template value<CompoundArray>()
+									,Item<MapType,StorageModel>::create());*/
+								}
+							else
+								{
+								node_current=insert(node_current->template value<MapType>()
+									,key_current,Item<MapType,StorageModel>::create(),monitor);
+								}
 							state_current=State::KEY;
 							break;
 						case '[':
-							type_current=arraySet(type_current);
+							nodes.push(node_current);
+							if(node_current->array())
+								{
+							/*	node_current=append(node_current->template value<CompoundArray>()
+									,Item<CompoundArray,StorageModel>::create());*/
+								}
+							else
+								{
+								node_current=insert(node_current->template value<MapType>()
+									,key_current,Item<CompoundArray,StorageModel>::create(),monitor);
+								}
 							state_current=State::COMPOUND;
 							break;
 						case '}':
-						//Error if array
-						//POP
+							if(node_current->array())
+								{
+								monitor.raise(Error("An array of compounds must be terminated with ']'"));
+								return nullptr;
+								}
+							node_current=nodes.top();
+							nodes.pop();
 							state_current=State::COMPOUND;
 							break;
 						case ']':
@@ -419,7 +454,7 @@ namespace Temple
 			}
 		if(nodes.size()!=0)
 			{monitor.raise(Error("Unterminated block at EOF."));}
-		return node_current.item;
+		return node_current;
 		}
 	}
 

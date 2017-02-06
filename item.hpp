@@ -25,6 +25,9 @@ namespace Temple
 			bool has() const noexcept
 				{return IdGet<T,StorageModel>::id==m_type;}
 
+			bool array() const noexcept
+				{return m_type==arraySet(m_type);}
+
 			template<class T>
 			const T& value() const noexcept
 				{
