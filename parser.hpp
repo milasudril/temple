@@ -78,7 +78,7 @@ namespace Temple
 		template<class T,class StorageModel,class BufferType,class ExceptionHandler>
 		void append(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh)
 			{
-			using value_type=typename TypeGet<arraySet(IdGet<T,StorageModel>::id),StorageModel>::type;
+			using value_type=typename TypeGet<arrayUnset(IdGet<T,StorageModel>::id),StorageModel>::type;
 			item.template value<T>().push_back(convert<value_type>(buffer,eh));
 			}
 
@@ -89,23 +89,12 @@ namespace Temple
 		auto appendFunction(Type type)
 			{
 			AppendFunc<StorageModel,BufferType,ExceptionHandler> ret;
-			for_type<StorageModel,Type::I8_ARRAY,2,Type::COMPOUND_ARRAY>(type,[&ret](auto tag)
+			for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret](auto tag)
 				{
-				using T=typename decltype(auto)::type;
+				using T=typename decltype(tag)::type;
 				ret=append<T,StorageModel,BufferType,ExceptionHandler>;
 				});
 			return ret;
-			}
-
-	//	Item assignment. Only used for single values
-		template<class StorageModel,class BufferType,class ExceptionHandler>
-		void valueSet(Type type,ItemBase<StorageModel>& item,const BufferType& value,ExceptionHandler& eh)
-			{
-			for_type<StorageModel,Type::I8,2,Type::COMPOUND>(type,[&item,&value,&eh](auto tag)
-				{
-				using T=typename decltype(auto)::type;
-				item.template value<T>()=convert(value,eh);
-				});
 			}
 
 	//	Item insertion (into map)
@@ -144,8 +133,12 @@ namespace Temple
 			};
 			
 		auto type_current=Type::COMPOUND;
+
 		BufferType key_current;
-		BufferType token_in;
+		
+		std::unique_ptr<ItemBase<StorageModel>> item_current;
+		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
+		
 
 		Node node_current{BufferType(""),nullptr};
 		std::stack<Node> nodes;
@@ -155,6 +148,7 @@ namespace Temple
 	//	that have UB when trying to read at EOF. Using a wrapper solves
 	//	that problem.
 		typename BufferType::value_type ch_in;
+		BufferType token_in;
 		while(read(src,ch_in))
 			{
 			if(ch_in=='\n')
@@ -192,6 +186,11 @@ namespace Temple
 							state_current=State::COMPOUND;
 							break;
 						case '}':
+							itemInsert(node_current.item->template value<MapType>()
+								,key_current
+								,itemCreate<StorageModel>(type_current,token_in,monitor)
+								,monitor);
+						//POP
 							state_current=State::COMPOUND;
 							break;
 
@@ -260,6 +259,8 @@ namespace Temple
 							break;
 						case '[':
 							type_current=arraySet(type_current);
+							item_current=itemCreate<StorageModel>(type_current);
+							append_func=appendFunction<StorageModel,BufferType,ProgressMonitor>(type_current);
 							state_current=State::VALUE_ARRAY;
 							break;
 						case '"':
@@ -273,6 +274,7 @@ namespace Temple
 								,key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
+						//POP
 							state_current=State::COMPOUND;
 							break;
 						default:
@@ -295,9 +297,18 @@ namespace Temple
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
+							itemInsert(node_current.item->template value<MapType>()
+								,key_current
+								,itemCreate<StorageModel>(type_current,token_in,monitor)
+								,monitor);
 							state_current=State::KEY;
 							break;
 						case '}':
+							itemInsert(node_current.item->template value<MapType>()
+								,key_current
+								,itemCreate<StorageModel>(type_current,token_in,monitor)
+								,monitor);
+						//POP
 							state_current=State::COMPOUND;
 							break;
 						default:
@@ -336,10 +347,14 @@ namespace Temple
 							state_current=State::ESCAPE;
 							break;
 						case ',':
+							append_func(*item_current.get(),token_in,monitor);
 							state_current=State::VALUE_ARRAY;
 							break;
 						case ']':
-							state_current=State::COMPOUND;
+							append_func(*item_current.get(),token_in,monitor);
+							itemInsert(node_current.item->template value<MapType>()
+								,key_current,item_current,monitor);
+							state_current=State::KEY;
 							break;
 
 						default:
@@ -379,10 +394,12 @@ namespace Temple
 							break;
 						case '}':
 						//Error if array
+						//POP
 							state_current=State::COMPOUND;
 							break;
 						case ']':
 						//Error if not array
+						//POP
 							state_current=State::COMPOUND;
 							break;
 						case ',':

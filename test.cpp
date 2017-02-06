@@ -86,8 +86,8 @@ int main()
 	,"more objects":
 		{
 		 foo,s:"bar"
-		,value,d:3.14
-		,"value as float",f:3.14
+		,value,f64:3.14
+		,"value as float",f32:3.14
 		}
 	,xxx,s:"more stuff"
 	,yyy,s:"more stuff"
