@@ -28,7 +28,7 @@ inline bool read(Reader& reader,char& ch_in) noexcept
 class Monitor
 	{
 	public:
-		void raise(const Temple::Error& error)
+		[[noreturn]] void raise(const Temple::Error& error)
 			{throw error;}
 
 		void positionUpdate(uintmax_t line,uintmax_t col) noexcept

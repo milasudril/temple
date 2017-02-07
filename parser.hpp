@@ -61,7 +61,7 @@ namespace Temple
 		auto ret=item.get();
 		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
 			{raise(Error("Key «",key.c_str(),"» already exists in the current block."),eh);}
-		return *ret;
+		return ret->template value<MapType>();
 		}
 
 	namespace
@@ -74,8 +74,8 @@ namespace Temple
 
 				template<class T>
 				explicit Node(T& container):m_container(&container)
-					,m_array(std::is_same<std::remove_reference_t<T>,ArrayType>::value)
-					{}
+					,m_array(std::is_same<T,ArrayType>::value)
+					{static_assert(std::is_same<T,ArrayType>::value || std::is_same<T,MapType>::value,"");}
 
 				template<class BufferType,class ItemType,class ExceptionHandler>
 				auto& insert(const BufferType& key,ItemType&& item,ExceptionHandler& eh)
@@ -100,6 +100,9 @@ namespace Temple
 				T& container() noexcept
 					{return *reinterpret_cast<T*>(m_container);}
 
+				const void* pointer() const noexcept
+					{return m_container;}
+
 			
 			private:
 				void* m_container;
@@ -117,12 +120,12 @@ namespace Temple
 		enum class State:int
 			{
 			 KEY,COMMENT,ESCAPE,KEY_STRING,TYPE,COMPOUND,VALUE_ARRAY_CHECK
-			,VALUE_ARRAY,VALUE,VALUE_STRING,ITEM_STRING
+			,VALUE_ARRAY,VALUE,VALUE_STRING,ITEM_STRING,INIT
 			};
 
 		uintmax_t line_count=1;
 		uintmax_t col_count=0;
-		auto state_current=State::COMPOUND;
+		auto state_current=State::INIT;
 		auto state_old=state_current;
 		
 		Locale loc; //Fix number conversion
@@ -135,6 +138,7 @@ namespace Temple
 		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
 
 		Node<CompoundArray,MapType> node_current;
+		std::unique_ptr<ItemBase<StorageModel>> root;
 		std::stack<decltype(node_current)> nodes;
 
 	//	Do not call feof, since that function expects that the caller
@@ -415,11 +419,35 @@ namespace Temple
 								{raise(Error("Illegal character '",ch_in,"'."),monitor);}
 						}
 					break;
+
+				case State::INIT:
+					switch(ch_in)
+						{
+						case '#':
+							state_old=state_current;
+							state_current=State::COMMENT;
+							break;
+						case '{':
+							root=Item<MapType,StorageModel>::create();
+							node_current=decltype(node_current)( root->template value<MapType>() );
+							state_current=State::KEY;
+							break;
+						case '[':
+							root=Item<CompoundArray,StorageModel>::create();
+							node_current=decltype(node_current)(root->template value<CompoundArray>() );
+							state_current=State::COMPOUND;
+							break;
+						default:
+							if(!(ch_in>=0 && ch_in<=' '))
+								{raise(Error("Illegal character '",ch_in,"'."),monitor);}
+						}
+					break;
 				}
 			}
 		if(nodes.size()!=0)
 			{raise(Error("Unterminated block at EOF."),monitor);}
-		return nullptr; //FIXME
+		assert(node_current.pointer()==root.get());
+		return root.release();
 		}
 	}
 
