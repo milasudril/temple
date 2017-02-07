@@ -17,6 +17,20 @@
 
 namespace Temple
 	{
+	struct Locale
+		{
+		Locale():m_handle(newlocale(LC_ALL,"C",0))
+			{m_loc_old=uselocale(m_handle);}
+		~Locale()
+			{
+			uselocale(m_loc_old);
+			freelocale(m_handle);
+			}
+
+		locale_t m_handle;
+		locale_t m_loc_old;
+		};
+
 
 //Helpers for numeric types
 

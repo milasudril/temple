@@ -66,20 +66,6 @@ namespace Temple
 
 	namespace
 		{
-		struct Locale
-			{
-			Locale():m_handle(newlocale(LC_ALL,"C",0))
-				{m_loc_old=uselocale(m_handle);}
-			~Locale()
-				{
-				uselocale(m_loc_old);
-				freelocale(m_handle);
-				}
-
-			locale_t m_handle;
-			locale_t m_loc_old;
-			};
-
 		template<class ArrayType,class MapType>
 		class Node
 			{
@@ -139,8 +125,7 @@ namespace Temple
 		auto state_current=State::COMPOUND;
 		auto state_old=state_current;
 		
-		Locale loc;
-
+		Locale loc; //Fix number conversion
 		
 		auto type_current=Type::COMPOUND;
 
