@@ -20,7 +20,7 @@ namespace Temple
 	template<class StackType,class ExceptionHandler>
 	auto pop(StackType& stack,ExceptionHandler& eh)
 		{
-		if(stack.empty()==0)
+		if(stack.empty())
 			{raise(Error("There are no more blocks to end."),eh);}
 		auto ret=stack.top();
 		stack.pop();
@@ -61,7 +61,7 @@ namespace Temple
 		auto ret=item.get();
 		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
 			{raise(Error("Key «",key.c_str(),"» already exists in the current block."),eh);}
-		return ret->template value<MapType>();
+		return *ret;
 		}
 
 	namespace
@@ -187,6 +187,7 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
+							token_in.clear();
 							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
@@ -270,6 +271,7 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
+							token_in.clear();
 							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
@@ -296,12 +298,14 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
+							token_in.clear();
 							state_current=State::KEY;
 							break;
 						case '}':
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
+							token_in.clear();
 							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
@@ -342,10 +346,12 @@ namespace Temple
 							break;
 						case ',':
 							append_func(*item_current.get(),token_in,monitor);
+							token_in.clear();
 							state_current=State::VALUE_ARRAY;
 							break;
 						case ']':
 							append_func(*item_current.get(),token_in,monitor);
+							token_in.clear();
 							node_current.insert(key_current,item_current,monitor);
 							state_current=State::KEY;
 							break;
@@ -385,7 +391,8 @@ namespace Temple
 							else
 								{
 								node_current=decltype(node_current)(node_current.insert(key_current
-									,Item<MapType,StorageModel>::create(),monitor));
+									,Item<MapType,StorageModel>::create(),monitor)
+										.template value<MapType>() );
 								}
 							state_current=State::KEY;
 							break;
@@ -396,7 +403,8 @@ namespace Temple
 							else
 								{
 								node_current=decltype(node_current)(node_current.insert(key_current
-									,Item<CompoundArray,StorageModel>::create(),monitor));
+									,Item<CompoundArray,StorageModel>::create(),monitor)
+										.template value<MapType>() );
 								}
 							break;
 						case '}':
