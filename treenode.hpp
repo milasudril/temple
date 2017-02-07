@@ -54,6 +54,36 @@ namespace Temple
 			void* m_container;
 			bool m_array;
 		};
+
+	template<class ArrayType,class MapType>
+	class TreeNodeConst
+		{
+		public:
+			TreeNodeConst():m_container(nullptr),m_array(0){}
+
+			template<class T>
+			explicit TreeNodeConst(T&& container)=delete;
+				
+			template<class T>
+			explicit TreeNodeConst(const T& container):m_container(&container)
+				,m_array(std::is_same<T,ArrayType>::value)
+				{static_assert(std::is_same<T,ArrayType>::value || std::is_same<T,MapType>::value,"");}
+
+			bool array() const noexcept
+				{return m_array;}
+
+			template<class T>
+			const T& container() const noexcept
+				{return *reinterpret_cast<const T*>(m_container);}
+
+			const void* pointer() const noexcept
+				{return m_container;}
+
+		
+		private:
+			const void* m_container;
+			bool m_array;
+		};
 	}
 
 #endif
