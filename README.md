@@ -28,7 +28,7 @@ The following table shows a comparison between TeMpLe and other data formats.
 | Serialization overhead | Compounds: element name + attribute names | Arrays: one byte, Compounds: property names | Arrays: one byte, Compounds: property names + type annotations | ? |
 | Compression support | No | No | No | Yes|
 
-Neither TeMpLe or HDF5 can store hetrogenous arrays, however TeMpLe can emulate arrays of compounds through syntactic sugar.
+Neither TeMpLe or HDF5 can store hetrogenous arrays, however TeMpLe can emulate arrays of compounds through arrays of compounds.
 
 The TeMpLe syntax
 -----------------
@@ -50,23 +50,16 @@ In BNF-like syntax
 	<compound> ::= { "{" <member> "}" }
 	<compound_array> ::= "[" {<compound_element>} "]"
 	<compound_element> ::= <compound> | ( <compound> "," <compound_element> )
-	<type_id> ::= ("i8"|"i16"|"i32"|"i64"|"f"|"d"|"s")
+	<type_id> ::= ("i8"|"i16"|"i32"|"i64"|"f32"|"f64"|"s"|"comp")
 
-A compound array can be used to emulate hetrogenous arrays. This construct is internally equivalent to inserting pairs with a sequentially generated key, formatted as 16 hexadecimal digits. To clarify , the following two examples are equivalent:
-
-    [{key,i32:41},{obj,i16:12}]
-
-and
-	
-	{0000000000000000:{key,i32:41},0000000000000001:{obj,i16:12}}
-
-The parser does keep track of the two formats in order to simplify usage, and to make the serialiser write data properly.
 
 Library usage
 -------------
-This library is template-heavy. It is likely that one specialisation works well within a single project. If you fear code bloat, instanciate it in you I/O module and keep it there. Example usage can be found in `test.cpp`.
+This library is template-heavy. It is likely that one specialisation works well within a single project. If you fear code bloat, instanciate it in your I/O module and keep it there. Example usage can be found in `test.cpp`.
 
 ### Customisation
+
+***This needs to be rewritten***
 
  * Some functions requires an exception handler. An exception handler must either throw, or terminate current thread when the raise method is called.
  * The store method accepts everything that behaves like a `FILE*` opened for writing. Full compatibility is not needed. The only requiremets are presence of the functions `putc` and `fputs`.
