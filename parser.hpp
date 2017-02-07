@@ -7,9 +7,61 @@
 #include "converters.hpp"
 #include <clocale>
 #include <stack>
+#include <type_traits>
 
 namespace Temple
 	{
+	namespace
+		{
+		template<class StorageModel,class BufferType,class ExceptionHandler>
+		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
+		}
+
+	template<class ExceptionHandler>
+	[[noreturn]] static void raise(const Error& msg,ExceptionHandler& eh)
+		{
+		eh.raise(msg);
+		assert(0 && "Exception handler must not return to its caller.");
+		}
+
+
+//	Array append functions
+	template<class ArrayType>
+	static typename ArrayType::value_type& append(ArrayType& array)
+		{
+		array.emplace_back( typename ArrayType::value_type{} );
+		return array.back();
+		}
+
+	template<class T,class StorageModel,class BufferType,class ExceptionHandler>
+	static void append(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh)
+		{
+		using value_type=typename TypeGet<arrayUnset(IdGet<T,StorageModel>::id),StorageModel>::type;
+		item.template value<T>().push_back(convert<value_type>(buffer,eh));
+		}
+
+	template<class StorageModel,class BufferType,class ExceptionHandler>
+	static auto appendFunction(Type type)
+		{
+		AppendFunc<StorageModel,BufferType,ExceptionHandler> ret;
+		for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret](auto tag)
+			{
+			using T=typename decltype(tag)::type;
+			ret=append<T,StorageModel,BufferType,ExceptionHandler>;
+			});
+		return ret;
+		}
+
+	//	Item insertion (into map)
+	template<class MapType,class BufferType,class ItemType,class ExceptionHandler>
+	static auto& insert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
+		{
+		auto ret=item.get();
+		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
+			{raise(Error("Key ",key.c_str()," already exists in the current node."),eh);}
+		return *ret;
+		}
+
 	namespace
 		{
 		struct Locale
@@ -25,101 +77,47 @@ namespace Temple
 			locale_t m_handle;
 			locale_t m_loc_old;
 			};
-#if 0
-	//SFINAE for detecting a map
-		struct has_not_member{};
 
-		struct has_member:public has_not_member{};
-
-		template<class X> struct member_test
-			{typedef int type;};
-
-		template<class T,typename member_test<typename T::mapped_type>::type=0>
-		static constexpr bool test_mapped_type(has_member)
-			{return 1;}
-
-		template<class T>
-		static constexpr bool test_mapped_type(has_not_member)
-			{return 0;}
-
-		template <class T>
-		struct IsMap
-			{static constexpr bool value=test_mapped_type<T>(has_member{});};
-
-		template<class T,std::enable_if_t<IsMap<T>::value,int> x=0>
-		void doStuff()
+		template<class ArrayType,class MapType>
+		class Node
 			{
-			printf("This is a map\n");
-			}
+			public:
+				Node():m_container(nullptr),m_array(0){}
 
-		template<class T,std::enable_if_t<!IsMap<T>::value,int> x=0>
-		void doStuff()
-			{
-			printf("This is not a map\n");
-			}
+				template<class T>
+				explicit Node(T& container):m_container(&container)
+					,m_array(std::is_same<std::remove_reference_t<T>,ArrayType>::value)
+					{}
 
+				template<class BufferType,class ItemType,class ExceptionHandler>
+				auto& insert(const BufferType& key,ItemType&& item,ExceptionHandler& eh)
+					{
+					assert(m_container);
+					assert(!m_array);
+					return Temple::insert(*(reinterpret_cast<MapType*>(m_container))
+						,key,std::move(item),eh);
+					}
 
-		template<class T,class StorageModel,class Node,class ExceptionHandler
-			,std::enable_if_t< std::is_same<T,typename StorageModel::MapType> > x=0>
-		void append(ItemBase<StorageModel>& item,Node&& node,ExceptionHandler& eh)
-			{
-			if(!item.template value<T>().insert({std::move(node.key), std::move(node.item)}).second)
-				{eh.raise(Error("Double key"));}
-			}
+				auto& append()
+					{
+					assert(m_container);
+					assert(m_array);
+					return Temple::append(*(reinterpret_cast<ArrayType*>(m_container)));
+					}
 
-		template<class T,class StorageModel,class Node,class ExceptionHandler
-			,std::enable_if_t< std::is_same<T,typename StorageModel::ArrayType> > x=0>
-		void append(ItemBase<StorageModel>& item,Node&& node,ExceptionHandler& eh)
-			{item.template value<T>().push_back(convert<T>(node.value));}
-#endif
+				bool array() const noexcept
+					{return m_array;}
 
-	//	Array append functions
+				template<class T>
+				T& container() noexcept
+					{return *reinterpret_cast<T*>(m_container);}
 
-		template<class T,class StorageModel,class BufferType,class ExceptionHandler>
-		void append(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh)
-			{
-			using value_type=typename TypeGet<arrayUnset(IdGet<T,StorageModel>::id),StorageModel>::type;
-			item.template value<T>().push_back(convert<value_type>(buffer,eh));
-			}
-
-		template<class StorageModel,class BufferType,class ExceptionHandler>
-		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
-
-		template<class StorageModel,class BufferType,class ExceptionHandler>
-		auto appendFunction(Type type)
-			{
-			AppendFunc<StorageModel,BufferType,ExceptionHandler> ret;
-			for_type<StorageModel,Type::I8_ARRAY,2,Type::STRING_ARRAY>(type,[&ret](auto tag)
-				{
-				using T=typename decltype(tag)::type;
-				ret=append<T,StorageModel,BufferType,ExceptionHandler>;
-				});
-			return ret;
-			}
-
-		template<class ArrayType,class ItemType>
-		auto append(ArrayType& array,ItemType&& item)
-			{
-			auto ret=item.get();
-			array.push_back(std::move(item));
-			return ret;
-			}
-
-
-	//	Item insertion (into map)
-		template<class MapType,class BufferType,class ItemType,class ExceptionHandler>
-		auto insert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
-			{
-			auto ret=item.get();
-			if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
-				{
-				eh.raise(Error("Key ",key.c_str()," already exists in the current node."));
-				ret=nullptr;
-				}
-			return ret;
-			}
+			
+			private:
+				void* m_container;
+				bool m_array;
+			};
 		}
-
 
 	template<class StorageModel,class BufferType,class Source,class ProgressMonitor>
 	ItemBase<StorageModel>* temple_load(Source& src,ProgressMonitor& monitor)
@@ -149,8 +147,8 @@ namespace Temple
 		std::unique_ptr<ItemBase<StorageModel>> item_current;
 		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
 
-		ItemBase<StorageModel>* node_current;
-		std::stack<ItemBase<StorageModel>*> nodes;
+		Node<CompoundArray,MapType> node_current;
+		std::stack<decltype(node_current)> nodes;
 
 	//	Do not call feof, since that function expects that the caller
 	//	has tried to read data first. This is not compatible with API:s 
@@ -195,8 +193,7 @@ namespace Temple
 							state_current=State::COMPOUND;
 							break;
 						case '}':
-							insert(node_current->template value<MapType>()
-								,key_current
+							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
 						//POP
@@ -279,8 +276,7 @@ namespace Temple
 							state_current=State::KEY;
 							break;
 						case '}':
-							insert(node_current->template value<MapType>()
-								,key_current
+							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
 						//POP
@@ -306,15 +302,13 @@ namespace Temple
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
-							insert(node_current->template value<MapType>()
-								,key_current
+							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
 							state_current=State::KEY;
 							break;
 						case '}':
-							insert(node_current->template value<MapType>()
-								,key_current
+							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
 						//POP
@@ -361,8 +355,7 @@ namespace Temple
 							break;
 						case ']':
 							append_func(*item_current.get(),token_in,monitor);
-							insert(node_current->template value<MapType>()
-								,key_current,item_current,monitor);
+							node_current.insert(key_current,item_current,monitor);
 							state_current=State::KEY;
 							break;
 
@@ -396,38 +389,29 @@ namespace Temple
 							break;
 						case '{':
 							nodes.push(node_current);
-							if(node_current->array())
-								{
-							/*	node_current=append(node_current->template value<CompoundArray>()
-									,Item<MapType,StorageModel>::create());*/
-								}
+							if(node_current.array())
+								{node_current=decltype(node_current)(node_current.append());}
 							else
 								{
-								node_current=insert(node_current->template value<MapType>()
-									,key_current,Item<MapType,StorageModel>::create(),monitor);
+								node_current=decltype(node_current)(node_current.insert(key_current
+									,Item<MapType,StorageModel>::create(),monitor));
 								}
 							state_current=State::KEY;
 							break;
 						case '[':
 							nodes.push(node_current);
-							if(node_current->array())
-								{
-							/*	node_current=append(node_current->template value<CompoundArray>()
-									,Item<CompoundArray,StorageModel>::create());*/
-								}
+							if(node_current.array())
+								{raise(Error("An array cannot contain another array"),monitor);}
 							else
 								{
-								node_current=insert(node_current->template value<MapType>()
-									,key_current,Item<CompoundArray,StorageModel>::create(),monitor);
+								node_current=decltype(node_current)(node_current.insert(key_current
+									,Item<CompoundArray,StorageModel>::create(),monitor));
 								}
 							state_current=State::COMPOUND;
 							break;
 						case '}':
-							if(node_current->array())
-								{
-								monitor.raise(Error("An array of compounds must be terminated with ']'"));
-								return nullptr;
-								}
+							if(node_current.array())
+								{raise(Error("An array of compounds must be terminated with ']'"),monitor);}
 							node_current=nodes.top();
 							nodes.pop();
 							state_current=State::COMPOUND;
@@ -444,17 +428,14 @@ namespace Temple
 
 						default:
 							if(!(ch_in>=0 && ch_in<=' '))
-								{
-								monitor.raise(Error("Illegal character '",ch_in,"'."));
-								return nullptr; //FIXME
-								}
+								{raise(Error("Illegal character '",ch_in,"'."),monitor);}
 						}
 					break;
 				}
 			}
 		if(nodes.size()!=0)
-			{monitor.raise(Error("Unterminated block at EOF."));}
-		return node_current;
+			{raise(Error("Unterminated block at EOF."),monitor);}
+		return nullptr; //FIXME
 		}
 	}
 
