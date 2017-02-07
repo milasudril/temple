@@ -4,6 +4,7 @@
 #define TEMPLE_ITEMTREE_HPP
 
 #include "parser.hpp"
+#include "serializer.hpp"
 
 #include <cassert>
 #include <map>
@@ -33,6 +34,10 @@ namespace Temple
 			ItemTree(Source&& src,ProgressMonitor&& m):
 				m_root(temple_load<StorageModel,BufferType>(src,m))
 				{}
+
+			template<class Sink>
+			void store(Sink&& sink)
+				{temple_store(*m_root.get(),sink);}
 
 		private:
 			std::unique_ptr<ItemBase<StorageModel>> m_root;

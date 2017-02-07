@@ -119,6 +119,8 @@ int main()
 	try
 		{;
 		ItemTree<> tree(Reader{src},m);
+		tree.store(stdout);
+
 /*		m.reset();
 
 		Temple::ItemTree<>::StringType* ret;

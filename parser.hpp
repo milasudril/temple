@@ -5,9 +5,8 @@
 
 #include "item.hpp"
 #include "converters.hpp"
-#include <clocale>
+#include "treenode.hpp"
 #include <stack>
-#include <type_traits>
 
 namespace Temple
 	{
@@ -28,13 +27,6 @@ namespace Temple
 		}
 
 //	Array append functions
-	template<class ArrayType>
-	static typename ArrayType::value_type& append(ArrayType& array)
-		{
-		array.emplace_back( typename ArrayType::value_type{} );
-		return array.back();
-		}
-
 	template<class T,class StorageModel,class BufferType,class ExceptionHandler>
 	static void append(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh)
 		{
@@ -54,67 +46,10 @@ namespace Temple
 		return ret;
 		}
 
-	//	Item insertion (into map)
-	template<class MapType,class BufferType,class ItemType,class ExceptionHandler>
-	static auto& insert(MapType& map,const BufferType& key,ItemType&& item,ExceptionHandler& eh)
-		{
-		auto ret=item.get();
-		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
-			{raise(Error("Key «",key.c_str(),"» already exists in the current block."),eh);}
-		return *ret;
-		}
-
-	namespace
-		{
-		template<class ArrayType,class MapType>
-		class Node
-			{
-			public:
-				Node():m_container(nullptr),m_array(0){}
-
-				template<class T>
-				explicit Node(T& container):m_container(&container)
-					,m_array(std::is_same<T,ArrayType>::value)
-					{static_assert(std::is_same<T,ArrayType>::value || std::is_same<T,MapType>::value,"");}
-
-				template<class BufferType,class ItemType,class ExceptionHandler>
-				auto& insert(const BufferType& key,ItemType&& item,ExceptionHandler& eh)
-					{
-					assert(m_container);
-					assert(!m_array);
-					return Temple::insert(*(reinterpret_cast<MapType*>(m_container))
-						,key,std::move(item),eh);
-					}
-
-				auto& append()
-					{
-					assert(m_container);
-					assert(m_array);
-					return Temple::append(*(reinterpret_cast<ArrayType*>(m_container)));
-					}
-
-				bool array() const noexcept
-					{return m_array;}
-
-				template<class T>
-				T& container() noexcept
-					{return *reinterpret_cast<T*>(m_container);}
-
-				const void* pointer() const noexcept
-					{return m_container;}
-
-			
-			private:
-				void* m_container;
-				bool m_array;
-			};
-		}
-
 	template<class StorageModel,class BufferType,class Source,class ProgressMonitor>
 	std::unique_ptr<ItemBase<StorageModel>> temple_load(Source& src,ProgressMonitor& monitor)
 		{
 		using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
-
 		using CompoundArray=typename StorageModel::template ArrayType<MapType>;
 
 		enum class State:int
@@ -137,7 +72,7 @@ namespace Temple
 		std::unique_ptr<ItemBase<StorageModel>> item_current;
 		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
 
-		Node<CompoundArray,MapType> node_current;
+		TreeNode<CompoundArray,MapType> node_current;
 		std::unique_ptr<ItemBase<StorageModel>> root;
 		std::stack<decltype(node_current)> nodes;
 
@@ -405,7 +340,7 @@ namespace Temple
 						case '[':
 							nodes.push(node_current);
 							if(node_current.array())
-								{raise(Error("An array cannot contain another array"),monitor);}
+								{raise(Error("An array cannot contain another array."),monitor);}
 							else
 								{
 								node_current=decltype(node_current)(node_current.insert(key_current
@@ -415,7 +350,7 @@ namespace Temple
 							break;
 						case '}':
 							if(node_current.array())
-								{raise(Error("An array of compounds must be terminated with ']'"),monitor);}
+								{raise(Error("An array of compounds must be terminated with ']'."),monitor);}
 							node_current=pop(nodes,monitor);
 							break;
 						case ']':
