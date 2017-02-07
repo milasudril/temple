@@ -17,6 +17,16 @@ namespace Temple
 		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
 		}
 
+	template<class StackType,class ExceptionHandler>
+	auto pop(StackType& stack,ExceptionHandler& eh)
+		{
+		if(stack.empty()==0)
+			{raise(Error("There are no more blocks to end."),eh);}
+		auto ret=stack.top();
+		stack.pop();
+		return ret;
+		}
+
 //	Array append functions
 	template<class ArrayType>
 	static typename ArrayType::value_type& append(ArrayType& array)
@@ -50,7 +60,7 @@ namespace Temple
 		{
 		auto ret=item.get();
 		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
-			{raise(Error("Key «",key.c_str(),"» already exists in the current node."),eh);}
+			{raise(Error("Key «",key.c_str(),"» already exists in the current block."),eh);}
 		return *ret;
 		}
 
@@ -188,7 +198,7 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
-						//POP
+							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
 
@@ -271,7 +281,7 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
-						//POP
+							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
 						default:
@@ -303,7 +313,7 @@ namespace Temple
 							node_current.insert(key_current
 								,itemCreate<StorageModel>(type_current,token_in,monitor)
 								,monitor);
-						//POP
+							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
 						default:
@@ -403,14 +413,12 @@ namespace Temple
 						case '}':
 							if(node_current.array())
 								{raise(Error("An array of compounds must be terminated with ']'"),monitor);}
-							node_current=nodes.top();
-							nodes.pop();
+							node_current=pop(nodes,monitor);
 							break;
 						case ']':
 							if(!node_current.array())
 								{raise(Error("A compound must be terminated with '}'"),monitor);}
-							node_current=nodes.top();
-							nodes.pop();
+							node_current=pop(nodes,monitor);
 							break;
 						case ',':
 							if(!node_current.array())
