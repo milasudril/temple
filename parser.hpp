@@ -17,14 +17,6 @@ namespace Temple
 		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
 		}
 
-	template<class ExceptionHandler>
-	[[noreturn]] static void raise(const Error& msg,ExceptionHandler& eh)
-		{
-		eh.raise(msg);
-		assert(0 && "Exception handler must not return to its caller.");
-		}
-
-
 //	Array append functions
 	template<class ArrayType>
 	static typename ArrayType::value_type& append(ArrayType& array)

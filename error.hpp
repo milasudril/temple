@@ -3,6 +3,9 @@
 #ifndef TEMPLE_ERROR_HPP
 #define TEMPLE_ERROR_HPP
 
+#include <cassert>
+#include <cstddef>
+
 namespace Temple
 	{
 	class Error
@@ -10,10 +13,13 @@ namespace Temple
 		public:
 			template<class T,class...U>
 			explicit constexpr Error(const T& first,const U&...next) noexcept:m_buffer{}
-				{write(m_buffer,m_buffer+1023,first,next...);}
+				{write(m_buffer,m_buffer+capacity(),first,next...);}
 
 			const char* message() const noexcept
 				{return m_buffer;}
+
+			static constexpr size_t capacity() noexcept
+				{return s_capacity;}
 
 		private:
 			static constexpr void write(char* buffer,const char* buffer_end)
@@ -51,8 +57,16 @@ namespace Temple
 				*buffer=value;
 				return buffer+1;
 				}
-			char m_buffer[1024];
+			static constexpr size_t s_capacity=1023;
+			char m_buffer[s_capacity + 1];
 		};
+
+	template<class ExceptionHandler>
+	[[noreturn]] static void raise(const Error& msg,ExceptionHandler& eh)
+		{
+		eh.raise(msg);
+		assert(0 && "Exception handler must not return to its caller.");
+		}
 	}
 
 #endif

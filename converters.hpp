@@ -27,10 +27,10 @@ namespace Temple
 		errno=0;
 		auto x=::strtol(str.c_str(),&endptr,0);
 		if(errno==ERANGE)
-			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
-			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid integer."));}
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
 
 		return x;
 		}
@@ -42,10 +42,10 @@ namespace Temple
 		errno=0;
 		auto x=::strtoll(str.c_str(),&endptr,0);
 		if(errno==ERANGE)
-			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
-			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid integer."));}
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
 
 		return x;
 		}
@@ -57,10 +57,10 @@ namespace Temple
 		errno=0;
 		auto x=::strtof(str.c_str(),&endptr);
 		if(errno==ERANGE)
-			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
-			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."));}
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."),eh);}
 
 		return x;
 		}
@@ -72,10 +72,10 @@ namespace Temple
 		errno=0;
 		auto x=::strtod(str.c_str(),&endptr);
 		if(errno==ERANGE)
-			{eh.raise(Temple::Error("Value ",str.c_str()," out of range."));}
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
-			{eh.raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."));}
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid floating point number."),eh);}
 
 		return x;
 		}
@@ -99,10 +99,7 @@ namespace Temple
 			{
 			auto x=strtol(value,eh);
 			if(x<-128 || x>127)
-				{
-				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
-				abort();
-				}
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
 			return x;
 			}
 		};
@@ -115,10 +112,7 @@ namespace Temple
 			{
 			auto x=strtol(value,eh);
 			if(x<-32768 || x>32767)
-				{
-				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
-				abort();
-				}
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
 			return x;
 			}
 		};
@@ -131,10 +125,7 @@ namespace Temple
 			{
 			auto x=strtoll(value,eh);
 			if(x<-2147483648 || x>2147483647)
-				{
-				eh.raise(Temple::Error("Value ",value.c_str()," out of range."));
-				abort();
-				}
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
 			return x;
 			}
 		};

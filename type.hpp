@@ -221,9 +221,7 @@ namespace Temple
 		static void doIt(Type type,Callback& cb)
 			{	
 			if(t==type)
-				{
-				cb(TypeGet<t,StorageModel>{});
-				}
+				{cb(TypeGet<t,StorageModel>{});}
 			else
 				{
 				static constexpr auto t_next=step(t,x);
@@ -264,8 +262,7 @@ namespace Temple
 			{return Type::DOUBLE;}
 		if(str=="comp")
 			{return Type::COMPOUND;}
-		eh.raise(Error("The type identifier ",str.c_str()," does not correspond to a known type."));
-		abort();
+		raise(Error("The type identifier «",str.c_str(),"» does not correspond to a known type."),eh);
 		}
 
 	inline const char* type(Type type)
@@ -289,10 +286,10 @@ namespace Temple
 			case Type::COMPOUND:
 				return "comp";
 			default:
-				assert(1!=1);
+				assert(1!=1 && "Internal error");
 				return nullptr;
 			}
-		assert(1!=1);
+		assert(1!=1 && "Internal error");
 		return nullptr;
 		}
 	}
