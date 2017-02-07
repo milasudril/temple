@@ -350,10 +350,13 @@ namespace Temple
 							state_current=State::VALUE_ARRAY;
 							break;
 						case ']':
-							append_func(*item_current.get(),token_in,monitor);
-							token_in.clear();
+							if(token_in.size()!=0)
+								{
+								append_func(*item_current.get(),token_in,monitor);
+								token_in.clear();
+								}
 							node_current.insert(key_current,item_current,monitor);
-							state_current=State::KEY;
+							state_current=State::COMPOUND;
 							break;
 
 						default:
