@@ -111,7 +111,7 @@ namespace Temple
 		}
 
 	template<class StorageModel,class BufferType,class Source,class ProgressMonitor>
-	ItemBase<StorageModel>* temple_load(Source& src,ProgressMonitor& monitor)
+	std::unique_ptr<ItemBase<StorageModel>> temple_load(Source& src,ProgressMonitor& monitor)
 		{
 		using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
 
@@ -184,10 +184,13 @@ namespace Temple
 							state_current=State::COMPOUND;
 							break;
 						case '}':
-							node_current.insert(key_current
-								,itemCreate<StorageModel>(type_current,token_in,monitor)
-								,monitor);
-							token_in.clear();
+							if(token_in.size()!=0)
+								{
+								node_current.insert(key_current
+									,itemCreate<StorageModel>(type_current,token_in,monitor)
+									,monitor);
+								token_in.clear();
+								}
 							node_current=pop(nodes,monitor);
 							state_current=State::COMPOUND;
 							break;
@@ -407,7 +410,7 @@ namespace Temple
 								{
 								node_current=decltype(node_current)(node_current.insert(key_current
 									,Item<CompoundArray,StorageModel>::create(),monitor)
-										.template value<MapType>() );
+										.template value<CompoundArray>() );
 								}
 							break;
 						case '}':
@@ -439,11 +442,13 @@ namespace Temple
 							state_current=State::COMMENT;
 							break;
 						case '{':
+							nodes.push(node_current); //For symmetry
 							root=Item<MapType,StorageModel>::create();
 							node_current=decltype(node_current)( root->template value<MapType>() );
 							state_current=State::KEY;
 							break;
 						case '[':
+							nodes.push(node_current); //For symmetry
 							root=Item<CompoundArray,StorageModel>::create();
 							node_current=decltype(node_current)(root->template value<CompoundArray>() );
 							state_current=State::COMPOUND;
@@ -457,8 +462,8 @@ namespace Temple
 			}
 		if(nodes.size()!=0)
 			{raise(Error("Unterminated block at EOF."),monitor);}
-		assert(node_current.pointer()==root.get());
-		return root.release();
+		assert(node_current.pointer()==nullptr);
+		return root;
 		}
 	}
 

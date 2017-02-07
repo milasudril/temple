@@ -35,7 +35,7 @@ namespace Temple
 				{}
 
 		private:
-			ItemBase<StorageModel>* m_root;
+			std::unique_ptr<ItemBase<StorageModel>> m_root;
 		};
 	}
 

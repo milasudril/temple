@@ -106,7 +106,7 @@ int main()
 				}
 			]
 		 }
-		,[{foo,s:"bar"},{foo,s:"bar2"}]
+		,{foo,s:"bar"},{foo,s:"bar2"}
 	]
 ,"compound array 2":
 	[
