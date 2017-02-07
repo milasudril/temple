@@ -50,7 +50,7 @@ namespace Temple
 		{
 		auto ret=item.get();
 		if(!map.emplace(typename MapType::key_type(key),std::move(item)).second)
-			{raise(Error("Key ",key.c_str()," already exists in the current node."),eh);}
+			{raise(Error("Key «",key.c_str(),"» already exists in the current node."),eh);}
 		return *ret;
 		}
 
@@ -399,23 +399,22 @@ namespace Temple
 								node_current=decltype(node_current)(node_current.insert(key_current
 									,Item<CompoundArray,StorageModel>::create(),monitor));
 								}
-							state_current=State::COMPOUND;
 							break;
 						case '}':
 							if(node_current.array())
 								{raise(Error("An array of compounds must be terminated with ']'"),monitor);}
 							node_current=nodes.top();
 							nodes.pop();
-							state_current=State::COMPOUND;
 							break;
 						case ']':
-						//Error if not array
-						//POP
-							state_current=State::COMPOUND;
+							if(!node_current.array())
+								{raise(Error("A compound must be terminated with '}'"),monitor);}
+							node_current=nodes.top();
+							nodes.pop();
 							break;
 						case ',':
-						//KEY or COMPOUND (depending on array)
-							state_current=State::COMPOUND;
+							if(!node_current.array())
+								{state_current=State::KEY;}
 							break;
 
 						default:
