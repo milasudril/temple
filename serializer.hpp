@@ -70,7 +70,7 @@ namespace Temple
 					if(root.array())
 						{m_stack.push(VisitorArray::create(root.template value<CompoundArray>() ) );}
 					else
-						{}
+						{m_stack.push(VisitorMap::create(root.template value<MapType>() ) );}
 					}
 
 				void run()
@@ -98,7 +98,7 @@ namespace Temple
 
 					if(visitor.atBegin())
 						{putc('[',r_sink);}
-
+				//	m_stack.push
 					}
 
 			private:
