@@ -127,7 +127,28 @@ namespace Temple
 					putc(visitor.atBegin()?'{':',',r_sink);
 					putc('"',r_sink);
 					write(node_current.first.c_str(),r_sink);
-					putc('"',r_sink);
+					auto type_current=node_current.second->type();
+					fprintf(r_sink,"\",%s:",type(type_current));
+					if(type_current==Type::COMPOUND)
+						{
+						auto node=VisitorMap::create(node_current.second->template value<MapType>(),'}');
+						putc('\n',r_sink);
+						if(node->atEnd())
+							{putc('{',r_sink);}
+						m_stack.push(std::move(node));
+						
+						}
+					else
+					if(type_current==Type::COMPOUND_ARRAY)
+						{
+						auto node=VisitorArray::create(node_current.second->template value<CompoundArray>(),'}');
+						putc('\n',r_sink);
+						if(node->atEnd())
+							{putc('[',r_sink);}
+						m_stack.push(std::move(node));
+						}
+					else
+						{}
 					}
 
 			private:
