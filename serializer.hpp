@@ -185,7 +185,10 @@ namespace Temple
 						{
 						fputs(visitor.atBegin()?"{\n":",",r_sink);
 						if(visitor.atBegin())
-							{indent(m_stack.size(),r_sink);}
+							{
+							indent(m_stack.size(),r_sink);
+							putc(' ',r_sink);
+							}
 						}
 					putc('"',r_sink);
 					write(node_current.first.c_str(),r_sink);
