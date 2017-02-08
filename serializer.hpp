@@ -136,19 +136,24 @@ namespace Temple
 						if(node->atEnd())
 							{putc('{',r_sink);}
 						m_stack.push(std::move(node));
-						
 						}
 					else
 					if(type_current==Type::COMPOUND_ARRAY)
 						{
-						auto node=VisitorArray::create(node_current.second->template value<CompoundArray>(),'}');
+						auto node=VisitorArray::create(node_current.second->template value<CompoundArray>(),']');
 						putc('\n',r_sink);
 						if(node->atEnd())
 							{putc('[',r_sink);}
 						m_stack.push(std::move(node));
 						}
 					else
-						{}
+						{
+						for_type<StorageModel,Type::I8,1,Type::STRING_ARRAY>(type_current,[&node_current](auto tag)
+							{
+							using TypeCurrent=typename decltype(tag)::type;
+						//	write();
+							});
+						}
 					}
 
 			private:
