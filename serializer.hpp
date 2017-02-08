@@ -21,13 +21,16 @@ namespace Temple
 				virtual ~VisitorBase()=default;
 				char terminator() const noexcept
 					{return m_terminator;}
+				size_t size() const noexcept
+					{return m_size;}
 			protected:
-				explicit VisitorBase(char term) noexcept:
-					m_terminator(term)
+				explicit VisitorBase(char term,size_t size) noexcept:
+					m_terminator(term),m_size(size)
 					{}
 
 			private:
 				char m_terminator;
+				size_t m_size;
 			};
 
 		template<class Callback,class Container>
@@ -36,7 +39,7 @@ namespace Temple
 			public:
 				explicit Visitor(Container&&)=delete;
 				explicit Visitor(const Container& container,char term):
-					 VisitorBase<Callback>(term)
+					 VisitorBase<Callback>(term,container.size())
 					,m_begin(container.begin())
 					,m_current(container.begin())
 					,m_end(container.end())
@@ -63,8 +66,20 @@ namespace Temple
 				typename Container::const_iterator m_end;
 			};
 
-		template<class Cstr,class Sink>
-		static void write(Cstr src,Sink& sink)
+		template<class Sink>
+		void indent(size_t level,Sink& sink)
+			{
+			assert(level!=0);
+			--level;
+			while(level!=0)
+				{
+				putc('\t',sink);
+				--level;
+				}
+			}
+
+		template<class CharType,class Sink>
+		void write(const CharType* src,Sink& sink)
 			{
 			while(true)
 				{
@@ -76,6 +91,39 @@ namespace Temple
 				putc(ch_in,sink);
 				++src;
 				}
+			}
+
+		template<class StorageModel,class Sink>
+		void write(const typename StorageModel::StringType& string,Sink& sink)
+			{
+			putc('"',sink);
+			write(string.c_str(),sink);
+			putc('"',sink);
+			}
+
+		template<class StorageModel,class T,class Sink,std::enable_if_t<std::is_arithmetic<T>::value,int> a=0> 
+		void write(T x,Sink& sink)
+			{write(convert<std::string>(x).c_str(),sink);}
+
+		template<class StorageModel,class T,class Sink>
+		void write(const typename StorageModel::template ArrayType<T>& array,Sink& sink)
+			{
+			putc('[',sink);
+			auto ptr=array.begin();
+			auto ptr_end=array.end();
+			if(ptr!=ptr_end)
+				{
+				write<StorageModel>(*ptr,sink);
+				++ptr;
+				}
+			while(ptr!=ptr_end)
+				{
+				putc(',',sink);
+				write<StorageModel>(*ptr,sink);
+				++ptr;
+				}
+
+			putc(']',sink);
 			}
 		
 		template<class StorageModel,class Sink>
@@ -105,7 +153,11 @@ namespace Temple
 						auto& visitor=m_stack.top();
 						if(visitor->atEnd())
 							{
+							if(visitor->size()>1 
+								|| (visitor->terminator()==']' && visitor->size()!=0))
+								{indent(m_stack.size(),r_sink);}
 							putc(visitor->terminator(),r_sink);
+							putc('\n',r_sink);
 							m_stack.pop();
 							}
 						else
@@ -118,13 +170,23 @@ namespace Temple
 
 				void operator()(const MapType& node_current,const VisitorArray& visitor)
 					{
+					indent(m_stack.size(),r_sink);
 					putc(visitor.atBegin()?'[':',',r_sink);
+					putc('\n',r_sink);
 					m_stack.push(VisitorMap::create(node_current,'}'));
 					}
 
 				void operator()(const typename MapType::value_type& node_current,const VisitorMap& visitor)
 					{
-					putc(visitor.atBegin()?'{':',',r_sink);
+					indent(m_stack.size(),r_sink);
+					if(visitor.size()==1)
+						{putc('{',r_sink);}
+					else
+						{
+						fputs(visitor.atBegin()?"{\n":",",r_sink);
+						if(visitor.atBegin())
+							{indent(m_stack.size(),r_sink);}
+						}
 					putc('"',r_sink);
 					write(node_current.first.c_str(),r_sink);
 					auto type_current=node_current.second->type();
@@ -134,7 +196,10 @@ namespace Temple
 						auto node=VisitorMap::create(node_current.second->template value<MapType>(),'}');
 						putc('\n',r_sink);
 						if(node->atEnd())
-							{putc('{',r_sink);}
+							{
+							indent(m_stack.size()+1,r_sink);
+							putc('{',r_sink);
+							}
 						m_stack.push(std::move(node));
 						}
 					else
@@ -143,15 +208,21 @@ namespace Temple
 						auto node=VisitorArray::create(node_current.second->template value<CompoundArray>(),']');
 						putc('\n',r_sink);
 						if(node->atEnd())
-							{putc('[',r_sink);}
+							{
+							indent(m_stack.size()+1,r_sink);
+							putc('[',r_sink);
+							}
 						m_stack.push(std::move(node));
 						}
 					else
 						{
-						for_type<StorageModel,Type::I8,1,Type::STRING_ARRAY>(type_current,[&node_current](auto tag)
+						for_type<StorageModel,Type::I8,1,Type::STRING_ARRAY>(type_current,[&node_current,this,&visitor](auto tag)
 							{
 							using TypeCurrent=typename decltype(tag)::type;
-						//	write();
+							auto& object=node_current.second->template value<TypeCurrent>();
+							write<StorageModel>(object,this->r_sink);
+							if(visitor.size()!=1)
+								{putc('\n',this->r_sink);}
 							});
 						}
 					}
@@ -164,7 +235,10 @@ namespace Temple
 
 	template<class StorageModel,class Sink>
 	void temple_store(const ItemBase<StorageModel>& root,Sink& sink)
-		{Acceptor<StorageModel,Sink>(root,sink).run();}
+		{
+		Locale loc;
+		Acceptor<StorageModel,Sink>(root,sink).run();
+		}
 	}
 
 #endif
