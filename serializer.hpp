@@ -62,6 +62,21 @@ namespace Temple
 				typename Container::const_iterator m_current;
 				typename Container::const_iterator m_end;
 			};
+
+		template<class Cstr,class Sink>
+		static void write(Cstr src,Sink& sink)
+			{
+			while(true)
+				{
+				auto ch_in=*src;
+				if(ch_in=='\0')
+					{return;}
+				if(ch_in=='\\' || ch_in=='\"')
+					{putc('\\',sink);}
+				putc(ch_in,sink);
+				++src;
+				}
+			}
 		
 		template<class StorageModel,class Sink>
 		class Acceptor
@@ -103,16 +118,16 @@ namespace Temple
 
 				void operator()(const MapType& node_current,const VisitorArray& visitor)
 					{
-					if(visitor.atBegin())
-						{putc('[',r_sink);}
+					putc(visitor.atBegin()?'[':',',r_sink);
 					m_stack.push(VisitorMap::create(node_current,'}'));
 					}
 
 				void operator()(const typename MapType::value_type& node_current,const VisitorMap& visitor)
 					{
-					if(visitor.atBegin())
-						{putc('{',r_sink);}
-					fprintf(r_sink,"%s\n",node_current.first.c_str());
+					putc(visitor.atBegin()?'{':',',r_sink);
+					putc('"',r_sink);
+					write(node_current.first.c_str(),r_sink);
+					putc('"',r_sink);
 					}
 
 			private:
