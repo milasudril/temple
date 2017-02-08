@@ -118,7 +118,7 @@ namespace Temple
 				}
 			while(ptr!=ptr_end)
 				{
-				putc(',',sink);
+				fputs(", ",sink);
 				write<StorageModel>(*ptr,sink);
 				++ptr;
 				}
