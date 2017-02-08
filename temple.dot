@@ -11,4 +11,5 @@ digraph "G"
 	Value -> Compound
 	"Value array"-> Compound
 	Compound -> Key
+	Init -> Compound
 	}

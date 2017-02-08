@@ -120,32 +120,11 @@ int main()
 		{;
 		ItemTree<> tree(Reader{src},m);
 		tree.store(stdout);
-
-/*		m.reset();
-
-		Temple::ItemTree<>::StringType* ret;
-		assert(TEMPLE_FIND(tree,ret,   "0000000000000001","property"));
-		assert(!TEMPLE_INSERT_MOVE(tree,1234,"root","foo","bar"));
-		assert(TEMPLE_INSERT_MOVE(tree,1234,"0000000000000001","test"));
-		int* x;
-		assert(TEMPLE_FIND(tree,x,"0000000000000001","test"));
-		assert(*x==1234);
-		*x=123456;
-
-		Temple::ItemTree<>::StringType new_string("Hello, World");
-		assert(TEMPLE_INSERT_COPY(tree,new_string,"0000000000000001","another property"));
-		assert(TEMPLE_COMPOUND_INSERT(tree,0,"0000000000000001","a compound"));
-		assert(TEMPLE_INSERT_MOVE(tree,42,"0000000000000001","a compound","the answer to the question about universe life and everything"));
-		assert(TEMPLE_ELEMENT_INSERT(tree,0,""));
-		assert(TEMPLE_INSERT_MOVE(tree,137,"0000000000000002","fine-structure constant"));
-
-		auto path_rt=Temple::ItemTree<>::Path("hello").append("world");
-		auto path_rt_2=TEMPLE_BASE_PATH(ItemTree<>,"this","is","a","test").append("runtime data");
-
-		const auto& ctree=tree;
-		const int* cx;
-		assert(TEMPLE_FIND(ctree,cx,"0000000000000001","test"));
-		tree.store(stdout,m);*/
+		write<BasicStorage>(tree.root().value<ItemTree<>::CompoundArray>()
+			[0].find(ItemTree<>::KeyType("foo"))->second
+			->value<ItemTree<>::Compound>()
+			.find(ItemTree<>::KeyType("bar"))->second
+			->value<ItemTree<>::ArrayType<int>>(),stdout);
 		}
 	catch(const Temple::Error& error)
 		{

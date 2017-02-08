@@ -9,8 +9,68 @@
 
 namespace Temple
 	{
+	template<class CharType,class Sink>
+	void write(const CharType* src,Sink& sink)
+		{
+		while(true)
+			{
+			auto ch_in=*src;
+			if(ch_in=='\0')
+				{return;}
+			if(ch_in=='\\' || ch_in=='\"')
+				{putc('\\',sink);}
+			putc(ch_in,sink);
+			++src;
+			}
+		}
+
+	template<class StorageModel,class Sink>
+	void write(const typename StorageModel::StringType& string,Sink& sink)
+		{
+		putc('"',sink);
+		write(string.c_str(),sink);
+		putc('"',sink);
+		}
+
+	template<class StorageModel,class T,class Sink,std::enable_if_t<std::is_arithmetic<T>::value,int> a=0> 
+	void write(T x,Sink& sink)
+		{write(convert<std::string>(x).c_str(),sink);}
+
+	template<class StorageModel,class T,class Sink>
+	void write(const typename StorageModel::template ArrayType<T>& array,Sink& sink)
+		{
+		putc('[',sink);
+		auto ptr=array.begin();
+		auto ptr_end=array.end();
+		if(ptr!=ptr_end)
+			{
+			write<StorageModel>(*ptr,sink);
+			++ptr;
+			}
+		while(ptr!=ptr_end)
+			{
+			fputs(", ",sink);
+			write<StorageModel>(*ptr,sink);
+			++ptr;
+			}
+
+		putc(']',sink);
+		}
+
 	namespace
 		{
+		template<class Sink>
+		void indent(size_t level,Sink& sink)
+			{
+			assert(level!=0);
+			--level;
+			while(level!=0)
+				{
+				putc('\t',sink);
+				--level;
+				}
+			}
+
 		template<class Callback>
 		class VisitorBase
 			{
@@ -65,66 +125,6 @@ namespace Temple
 				typename Container::const_iterator m_current;
 				typename Container::const_iterator m_end;
 			};
-
-		template<class Sink>
-		void indent(size_t level,Sink& sink)
-			{
-			assert(level!=0);
-			--level;
-			while(level!=0)
-				{
-				putc('\t',sink);
-				--level;
-				}
-			}
-
-		template<class CharType,class Sink>
-		void write(const CharType* src,Sink& sink)
-			{
-			while(true)
-				{
-				auto ch_in=*src;
-				if(ch_in=='\0')
-					{return;}
-				if(ch_in=='\\' || ch_in=='\"')
-					{putc('\\',sink);}
-				putc(ch_in,sink);
-				++src;
-				}
-			}
-
-		template<class StorageModel,class Sink>
-		void write(const typename StorageModel::StringType& string,Sink& sink)
-			{
-			putc('"',sink);
-			write(string.c_str(),sink);
-			putc('"',sink);
-			}
-
-		template<class StorageModel,class T,class Sink,std::enable_if_t<std::is_arithmetic<T>::value,int> a=0> 
-		void write(T x,Sink& sink)
-			{write(convert<std::string>(x).c_str(),sink);}
-
-		template<class StorageModel,class T,class Sink>
-		void write(const typename StorageModel::template ArrayType<T>& array,Sink& sink)
-			{
-			putc('[',sink);
-			auto ptr=array.begin();
-			auto ptr_end=array.end();
-			if(ptr!=ptr_end)
-				{
-				write<StorageModel>(*ptr,sink);
-				++ptr;
-				}
-			while(ptr!=ptr_end)
-				{
-				fputs(", ",sink);
-				write<StorageModel>(*ptr,sink);
-				++ptr;
-				}
-
-			putc(']',sink);
-			}
 		
 		template<class StorageModel,class Sink>
 		class Acceptor

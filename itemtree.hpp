@@ -30,6 +30,12 @@ namespace Temple
 	class ItemTree
 		{
 		public:
+			using KeyType=typename StorageModel::KeyType;
+			template<class T>
+			using ArrayType=typename StorageModel::template ArrayType<T>;
+			using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+			using CompoundArray=ArrayType<Compound>;
+
 			template<class Source,class ProgressMonitor,class BufferType=std::string>
 			ItemTree(Source&& src,ProgressMonitor&& m):
 				m_root(temple_load<StorageModel,BufferType>(src,m))
@@ -38,6 +44,12 @@ namespace Temple
 			template<class Sink>
 			void store(Sink&& sink)
 				{temple_store(*m_root.get(),sink);}
+
+			ItemBase<StorageModel>& root() noexcept
+				{return *m_root.get();}
+
+			const ItemBase<StorageModel>& root() const noexcept
+				{return *m_root.get();}
 
 		private:
 			std::unique_ptr<ItemBase<StorageModel>> m_root;
