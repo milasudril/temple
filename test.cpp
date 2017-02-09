@@ -78,7 +78,7 @@ int main()
 		tree.store(stdout);
 
 		auto& x=tree.root().value<ItemTree<>::CompoundArray>()[0]
-			.find<int>("\"quotation marks\" in \"key\"",[](auto err){throw err;});
+			.find<long>("\"quotation marks\" in \"key\"",[](auto err){throw err;});
 
 		printf("Found value: %d",x);
 		}

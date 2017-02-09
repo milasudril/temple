@@ -9,36 +9,38 @@
 
 namespace Temple
 	{
-	template<class KeyType,class ItemType>
-	class MapDefault:private std::map<KeyType,ItemType>
+	template<class StorageModel,class ItemType>
+	class MapDefault:private std::map<typename StorageModel::KeyType,ItemType>
 		{
 		public:
-			using std::map<KeyType,ItemType>::insert;
-			using std::map<KeyType,ItemType>::find;
-			using std::map<KeyType,ItemType>::size;
-			using std::map<KeyType,ItemType>::begin;
-			using std::map<KeyType,ItemType>::end;
-			using std::map<KeyType,ItemType>::value_type;
-			using std::map<KeyType,ItemType>::key_type;
-			using std::map<KeyType,ItemType>::iterator;
-			using std::map<KeyType,ItemType>::const_iterator;
-			using std::map<KeyType,ItemType>::emplace;
+			using key_type=typename StorageModel::KeyType;
+			using std::map<key_type,ItemType>::insert;
+			using std::map<key_type,ItemType>::find;
+			using std::map<key_type,ItemType>::size;
+			using std::map<key_type,ItemType>::begin;
+			using std::map<key_type,ItemType>::end;
+			using std::map<key_type,ItemType>::value_type;
+			using std::map<key_type,ItemType>::iterator;
+			using std::map<key_type,ItemType>::const_iterator;
+			using std::map<key_type,ItemType>::emplace;
 
 			template<class Type,class ExceptionHandler>
-			const Type& find(const KeyType& key,ExceptionHandler&& eh) const
+			const Type& find(const key_type& key,ExceptionHandler&& eh) const
 				{
 				auto i=find(key);
 				if(i==end())
 					{raise(Error("Key «",key.c_str(),"» not found"),eh);}
 				auto x=i->second.get();
 				if(!x->template has<Type>())
-					{raise(Error("Key «",key.c_str(),"» does not map to a value of type the given type."),eh);}
+					{
+					raise(Error("Key «",key.c_str(),"» does not map to a value of type "
+						,type(IdGet<Type,StorageModel>::id),'.'),eh);
+					}
 				return x->template value<Type>();
 				}
 
-
 			template<class Type,class ExceptionHandler>
-			Type& find(const KeyType& key,ExceptionHandler&& eh)
+			Type& find(const key_type& key,ExceptionHandler&& eh)
 				{
 				return const_cast<Type&>(static_cast<const MapDefault&>(*this).find<Type>(key,eh));
 				}

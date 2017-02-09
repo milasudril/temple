@@ -23,7 +23,7 @@ namespace Temple
 		using KeyType=std::string;
 
 		template<class ItemType>
-		using MapType=MapDefault<KeyType,ItemType>;
+		using MapType=MapDefault<BasicStorage,ItemType>;
 		};
 
 	template<class StorageModel=BasicStorage>
