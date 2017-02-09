@@ -78,9 +78,29 @@ int main()
 		tree.store(stdout);
 
 		auto& x=tree.root().value<ItemTree<>::CompoundArray>()[0]
-			.find<long>("\"quotation marks\" in \"key\"",[](auto err){throw err;});
+			.find_typed<ItemTree<>::Compound>("foo",[](auto err){throw err;})
+			.find_typed<ItemTree<>::Compound>("more objects",[](auto err){throw err;})
+			.find_typed<double>("value",[](auto err){throw err;});
 
-		printf("Found value: %d",x);
+		printf("Found value: %.7g\n",x);
+
+		auto& y=find_typed<double>([](auto err){throw err;}
+			,tree.root(),0,"foo","more objects","value");
+
+		assert(x==y);
+
+		const auto& tree_const=tree;
+
+		auto& xc=tree_const.root().value<ItemTree<>::CompoundArray>()[0]
+			.find_typed<ItemTree<>::Compound>("foo",[](auto err){throw err;})
+			.find_typed<ItemTree<>::Compound>("more objects",[](auto err){throw err;})
+			.find_typed<double>("value",[](auto err){throw err;});
+		printf("Found value: %.7g\n",xc);
+
+		auto& yc=find_typed<double>([](auto err){throw err;}
+			,tree_const.root(),0,"foo","more objects","value");
+
+		assert(yc==xc);
 		}
 	catch(const Temple::Error& error)
 		{

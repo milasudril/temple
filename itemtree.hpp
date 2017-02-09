@@ -54,6 +54,97 @@ namespace Temple
 		private:
 			std::unique_ptr<ItemBase<StorageModel>> m_root;
 		};
+
+	template<class Type,class ExceptionHandler,class StorageModel,class ... Path>
+	Type& find_typed(ExceptionHandler&& eh,ItemBase<StorageModel>& root,const Path&...path)
+		{
+		auto& x=find(eh,root,path...);
+		if(!x.template has<Type>())
+			{}
+		return x.template value<Type>();
+		}
+
+	template<class Type,class ExceptionHandler,class StorageModel,class ... Path>
+	const Type& find_typed(ExceptionHandler&& eh,const ItemBase<StorageModel>& root
+		,const Path&...path)
+		{
+		auto& x=find(eh,root,path...);
+		if(!x.template has<Type>())
+			{}
+		return x.template value<Type>();
+		}
+
+	template<class ExceptionHandler,class StorageModel>
+	auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root)
+		{return root;}
+
+	template<class ExceptionHandler,class StorageModel,class ... Path>
+	auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root
+		,const typename StorageModel::KeyType& key
+		,const Path&...path)
+		{
+		using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+		if(root.template has<Compound>())
+			{
+			auto& map=root.template value<Compound>();
+			return find(eh,map.find(key,eh),path...);
+			}
+		raise(Error("Current node is not a compound."),eh);
+		}
+
+	template<class ExceptionHandler,class StorageModel,class ... Path>
+	const auto& find(ExceptionHandler&& eh,const ItemBase<StorageModel>& root
+		,const typename StorageModel::KeyType& key
+		,const Path&...path)
+		{return find(eh,const_cast<ItemBase<StorageModel>&>(root),key,path...);}
+
+	template<class ExceptionHandler,class MapType,class ... Path>
+	auto& find(ExceptionHandler&& eh,MapType& map
+		,const typename MapType::key_type& key
+		,const Path&...path)
+		{return find(eh,map.find(key,eh),path...);}
+
+	template<class ExceptionHandler,class StorageModel>
+	auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root,size_t index)
+		{
+		using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+		using CompoundArray=typename StorageModel::template ArrayType<Compound>;
+
+		if(root.template has<CompoundArray>())
+			{
+			auto& a=root.template value<CompoundArray>();
+			if(index>=a.size())
+				{raise(Error("Array index out of bounds."),eh);}
+			return a[index];
+			}
+		raise(Error("Current node is not an array."),eh);
+		}
+
+	template<class ExceptionHandler,class StorageModel>
+	const auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root,size_t index)
+		{return find(eh,const_cast<ItemBase<StorageModel>&>(root),index);}
+
+	template<class ExceptionHandler,class StorageModel,class ... Path>
+	auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root,size_t index
+		,const Path&...path)
+		{
+		using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+		using CompoundArray=typename StorageModel::template ArrayType<Compound>;
+
+		if(root.template has<CompoundArray>())
+			{
+			auto& a=root.template value<CompoundArray>();
+			if(index>=a.size())
+				{raise(Error("Array index out of bounds."),eh);}
+			return find(eh,a[index],path...);
+			}
+		raise(Error("Current node is not an array."),eh);
+		}
+
+	template<class ExceptionHandler,class StorageModel,class ... Path>
+	const auto& find(ExceptionHandler&& eh,const ItemBase<StorageModel>& root,size_t index
+		,const Path&...path)
+		{return find(eh,const_cast<ItemBase<StorageModel>&>(root),index,path...);}
 	}
 
 #endif
