@@ -21,7 +21,11 @@ namespace Temple
 			template<class BufferType,class ItemType,class ExceptionHandler>
 			auto& insert(const BufferType& key,ItemType&& item,ExceptionHandler& eh)
 				{
-				assert(m_container);
+				if(m_container==nullptr)
+					{
+					raise(Error("Key «",key.c_str()
+						,"» cannot be inserted. Missing any opening bracket?"),eh);
+					}
 				assert(!m_array);
 				auto map=reinterpret_cast<MapType*>(m_container);
 				auto ret=item.get();

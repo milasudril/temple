@@ -100,6 +100,11 @@ namespace Temple
 							state_old=state_current;
 							state_current=State::COMMENT;
 							break;
+						case '{':
+							if(token_in.size()==0)
+								{raise(Error("Unterminated block, or '{' must be escaped when used as first character in a key."),monitor);}
+							token_in.push_back(ch_in);
+							break;
 						case '\\':
 							state_old=state_current;
 							state_current=State::ESCAPE;
@@ -109,14 +114,14 @@ namespace Temple
 							break;
 						case ',':
 							if(token_in.size()==0)
-								{monitor.raise(Error("Empty keys are not allowed."));}
+								{raise(Error("Empty keys are not allowed."),monitor);}
 							key_current=token_in;
 							token_in.clear();
 							state_current=State::TYPE;
 							break;
 						case ':':
 							if(token_in.size()==0)
-								{monitor.raise(Error("Empty keys are not allowed."));}
+								{raise(Error("Empty keys are not allowed."),monitor);}
 							key_current=token_in;
 							type_current=Type::COMPOUND;
 							token_in.clear();
@@ -376,7 +381,7 @@ namespace Temple
 
 						default:
 							if(!(ch_in>=0 && ch_in<=' '))
-								{raise(Error("Illegal character '",ch_in,"'."),monitor);}
+								{raise(Error("Compound: illegal character '",ch_in,"'."),monitor);}
 						}
 					break;
 
