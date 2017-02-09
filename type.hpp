@@ -4,7 +4,6 @@
 #define TEMPLE_TYPE_HPP
 
 #include "error.hpp"
-#include "stringconst.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <type_traits>
@@ -49,16 +48,7 @@ namespace Temple
 		typedef typename TypeGet<arrayUnset(t),StorageModel>::type BaseType;
 		static constexpr auto id=t;
 		typedef typename StorageModel::template ArrayType<BaseType> type;
-
-		typedef decltype(TypeGet<arrayUnset(id),StorageModel>::name.append(" array")) X;
-
-		static constexpr X name=TypeGet<arrayUnset(id),StorageModel>::name.append(" array");
 		};
-
-	template<Type t,class StorageModel>
-	constexpr typename TypeGet<t,StorageModel>::X TypeGet<t,StorageModel>::name;
-
-
 
 	template<class T,class StorageModel>
 	struct IdGet
@@ -74,8 +64,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I8;
 		typedef int8_t type;
-		typedef decltype(stringconst("i8")) X;
-		static constexpr X name=stringconst("i8");
 		};
 
 	template<class StorageModel>
@@ -92,8 +80,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I16;
 		typedef int16_t type;
-		typedef decltype(stringconst("i16")) X;
-		static constexpr auto name=stringconst("i16");
 		};
 
 	template<class StorageModel>
@@ -110,12 +96,7 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I32;
 		typedef int32_t type;
-		typedef decltype(stringconst("i32")) X;
-		static constexpr X name=stringconst("i32");
 		};
-
-	template<class StorageModel>
-	constexpr typename TypeGet<Type::I32,StorageModel>::X TypeGet<Type::I32,StorageModel>::name;
 
 	template<class StorageModel>
 	struct IdGet<int32_t,StorageModel>
@@ -131,8 +112,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I64;
 		typedef int64_t type;
-		typedef decltype(stringconst("i64")) X;
-		static constexpr auto name=stringconst("i64");
 		};
 
 	template<class StorageModel>
@@ -149,8 +128,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::FLOAT;
 		typedef float type;
-		typedef decltype(stringconst("float")) X;
-		static constexpr auto name=stringconst("float");
 		};
 
 	template<class StorageModel>
@@ -167,8 +144,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::DOUBLE;
 		typedef double type;
-		typedef decltype(stringconst("double")) X;
-		static constexpr auto name=stringconst("double");
 		};
 
 	template<class StorageModel>
@@ -185,7 +160,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::STRING;
 		typedef typename StorageModel::StringType type;
-		static constexpr auto name=stringconst("s");
 		};
 
 	template<class StorageModel>
@@ -202,7 +176,6 @@ namespace Temple
 		{
 		static constexpr auto id=Type::COMPOUND;
 		typedef typename StorageModel::template MapType<std::unique_ptr< ItemBase<StorageModel> >> type;
-		static constexpr auto name=stringconst("");
 		};
 
 	template<class StorageModel>

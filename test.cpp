@@ -1,8 +1,6 @@
 //@	{"targets":[{"name":"test","type":"application"}]}
 
 #include "itemtree.hpp"
-#include "stringconst.hpp"
-#include "pathconst.hpp"
 #include <cstdio>
 #include <clocale>
 #include <cinttypes>
