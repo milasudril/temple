@@ -65,7 +65,7 @@ namespace Temple
 	template<class ExceptionHandler>
 	[[noreturn]] static void raise(const Error& msg,ExceptionHandler& eh)
 		{
-		eh.raise(msg);
+		eh(msg);
 		assert(0 && "Exception handler must not return to its caller.");
 		}
 	}

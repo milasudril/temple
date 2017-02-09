@@ -13,7 +13,7 @@ using namespace Temple;
 class Monitor
 	{
 	public:
-		[[noreturn]] void raise(const Temple::Error& error)
+		[[noreturn]] void operator()(const Temple::Error& error)
 			{
 			auto line=Temple::convert(m_line);
 			auto col=Temple::convert(m_col);
@@ -76,6 +76,11 @@ int main()
 		{
 		ItemTree<> tree(Reader("test.temple"),Monitor{});
 		tree.store(stdout);
+
+		auto& x=tree.root().value<ItemTree<>::CompoundArray>()[0]
+			.find<int>("\"quotation marks\" in \"key\"",[](auto err){throw err;});
+
+		printf("Found value: %d",x);
 		}
 	catch(const Temple::Error& error)
 		{

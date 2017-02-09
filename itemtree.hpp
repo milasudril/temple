@@ -5,9 +5,9 @@
 
 #include "parser.hpp"
 #include "serializer.hpp"
+#include "mapdefault.hpp"
 
 #include <cassert>
-#include <map>
 #include <vector>
 #include <string>
 
@@ -23,7 +23,7 @@ namespace Temple
 		using KeyType=std::string;
 
 		template<class ItemType>
-		using MapType=std::map<KeyType,ItemType>;
+		using MapType=MapDefault<KeyType,ItemType>;
 		};
 
 	template<class StorageModel=BasicStorage>
@@ -36,9 +36,9 @@ namespace Temple
 			using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
 			using CompoundArray=ArrayType<Compound>;
 
-			template<class Source,class ProgressMonitor,class BufferType=std::string>
-			ItemTree(Source&& src,ProgressMonitor&& m):
-				m_root(temple_load<StorageModel,BufferType>(src,m))
+			template<class Source,class ExceptionHandler,class BufferType=std::string>
+			ItemTree(Source&& src,ExceptionHandler&& eh):
+				m_root(temple_load<StorageModel,BufferType>(src,eh))
 				{}
 
 			template<class Sink>
