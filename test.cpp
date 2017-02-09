@@ -10,21 +10,6 @@
 
 using namespace Temple;
 
-
-struct Reader
-	{
-	const char* r_src;
-	};
-
-inline bool read(Reader& reader,char& ch_in) noexcept 
-	{
-	ch_in=*reader.r_src;
-	if(ch_in=='\0')
-		{return 0;}
-	++reader.r_src;
-	return 1;
-	}
-
 class Monitor
 	{
 	public:
@@ -65,61 +50,32 @@ std::string& concat(std::string& a,const std::string& b)
 	return a;
 	}
 
+struct Reader
+	{
+	Reader(const char* src)
+		{handle=fopen(src,"rb");}
+	~Reader()
+		{fclose(handle);}
+
+	FILE* handle;
+	};
+
+bool read(Reader& reader,char& ch)
+	{
+	auto ch_in=getc(reader.handle);
+	if(ch_in==-1)
+		{return 0;}
+	ch=ch_in;
+	return 1;
+	}
+
 int main()
 	{
 	setlocale(LC_ALL,"");
-
-	const char* src=R"EOF([{
- "\"quotation marks\" in \"key\"",i32:1234
-,bar:
-	{baz,i64:124380867045036}
-,foo:
-	{
-	 "a string",s:"Hello, World"
-	,"another valid string",s:This\ is\ legal\ too
-	,bar,i32:[1,2,3,4]
-	,"empty array",i32:[]
-	,"more objects":
-		{
-		 foo,s:"bar"
-		,value,f64:3.14
-		,"value as float",f32:3.14
-		}
-	,xxx,s:"more stuff"
-	,yyy,s:"more stuff"
-	}
-,"goo":{key,i32:12456}
-,"compound array":
-	[
-		 {"a key",s:"A value"}
-		,{
-		"a key",s:"A value 2"
-		,"array":
-			[
-				{
-				 bar,i32:2
-				,foo,i32:"1"
-				}
-			]
-		 }
-		,{foo,s:"bar"},{foo,s:"bar2"}
-	]
-,"compound array 2":
-	[
-		 {"a key",s:"A value"}
-		,{"a key",s:"A value 2"}
-	]
-},{property,s:,"empty compound":{},"empty array":[]}])EOF";
-
 	try
 		{
-		ItemTree<> tree(Reader{src},Monitor{});
+		ItemTree<> tree(Reader("test.temple"),Monitor{});
 		tree.store(stdout);
-		write<BasicStorage>(tree.root().value<ItemTree<>::CompoundArray>()
-			[0].find(ItemTree<>::KeyType("foo"))->second
-			->value<ItemTree<>::Compound>()
-			.find(ItemTree<>::KeyType("bar"))->second
-			->value<ItemTree<>::ArrayType<int>>(),stdout);
 		}
 	catch(const Temple::Error& error)
 		{

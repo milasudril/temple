@@ -108,11 +108,15 @@ namespace Temple
 							state_current=State::KEY_STRING;
 							break;
 						case ',':
+							if(token_in.size()==0)
+								{monitor.raise(Error("Empty keys are not allowed."));}
 							key_current=token_in;
 							token_in.clear();
 							state_current=State::TYPE;
 							break;
 						case ':':
+							if(token_in.size()==0)
+								{monitor.raise(Error("Empty keys are not allowed."));}
 							key_current=token_in;
 							type_current=Type::COMPOUND;
 							token_in.clear();
@@ -203,6 +207,9 @@ namespace Temple
 							state_current=State::VALUE_STRING;
 							break;
 						case ',':
+							node_current.insert(key_current
+								,itemCreate<StorageModel>(type_current,token_in,monitor)
+								,monitor);
 							state_current=State::KEY;
 							break;
 						case '}':
@@ -225,6 +232,10 @@ namespace Temple
 				case State::VALUE:
 					switch(ch_in)
 						{
+						case '#':
+							state_old=state_current;
+							state_current=State::COMMENT;
+							break;
 						case '\\':
 							state_old=state_current;
 							state_current=State::ESCAPE;
