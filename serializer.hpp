@@ -34,7 +34,7 @@ namespace Temple
 
 	template<class StorageModel,class T,class Sink,std::enable_if_t<std::is_arithmetic<T>::value,int> a=0> 
 	void write(T x,Sink& sink)
-		{write(convert<std::string>(x).c_str(),sink);}
+		{write(convert(x).data(),sink);}
 
 	template<class StorageModel,class T,class Sink>
 	void write(const typename StorageModel::template ArrayType<T>& array,Sink& sink)

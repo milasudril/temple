@@ -57,6 +57,7 @@ namespace Temple
 				*buffer=value;
 				return buffer+1;
 				}
+
 			static constexpr size_t s_capacity=1023;
 			char m_buffer[s_capacity + 1];
 		};

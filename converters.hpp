@@ -184,33 +184,28 @@ namespace Temple
 
 //	Number to string conversion
 
-	template<class StringType>
-	const StringType& convert(const StringType& str)
-		{return str;}
-
-	template<class StringType,class Integer>
-	std::enable_if_t<std::is_integral<Integer>::value,StringType>
-	convert(Integer i)
+	template<class Number>
+	auto convert(Number i)
 		{
-		char buffer[digits<Integer>() + 2]; //Sign + nul character
-		sprintf(buffer,"%" PRIdMAX ,static_cast<intmax_t>(i));
-		return StringType(buffer);
+		std::array<char,digits<Number>() + 2> buffer; //Sign + nul character
+		sprintf(buffer.data(),"%" PRIdMAX ,static_cast<intmax_t>(i));
+		return buffer;
 		}
 
-	template<class StringType>
-	StringType convert(float x)
+	template<>
+	auto convert<float>(float x)
 		{
-		char buffer[16];
-		sprintf(buffer,"%.9g",x);
-		return StringType(buffer);
+		std::array<char,16> buffer;
+		sprintf(buffer.data(),"%.9g",x);
+		return buffer;
 		}
 
-	template<class StringType>
-	StringType convert(double x)
+	template<>
+	auto convert<double>(double x)
 		{
-		char buffer[24];
-		sprintf(buffer,"%.17g",x);
-		return StringType(buffer);
+		std::array<char,24> buffer;
+		sprintf(buffer.data(),"%.17g",x);
+		return buffer;
 		}
 	}
 

@@ -29,22 +29,18 @@ class Monitor
 	{
 	public:
 		[[noreturn]] void raise(const Temple::Error& error)
-			{throw error;}
+			{
+			auto line=Temple::convert(m_line);
+			auto col=Temple::convert(m_col);
+			Error e(line.data(),':',col.data(),": ",error.message());
+			throw e;
+			}
 
 		void positionUpdate(uintmax_t line,uintmax_t col) noexcept
 			{
 			m_line=line;
 			m_col=col;
 			}
-
-		auto line() noexcept
-			{return m_line;}
-
-		auto col() noexcept
-			{return m_col;}
-
-		void reset() noexcept
-			{m_line=0;m_col=0;}
 
 	private:
 		uintmax_t m_line;
@@ -115,10 +111,9 @@ int main()
 	]
 },{property,s:,"empty compound":{},"empty array":[]}])EOF";
 
-	Monitor m;
 	try
-		{;
-		ItemTree<> tree(Reader{src},m);
+		{
+		ItemTree<> tree(Reader{src},Monitor{});
 		tree.store(stdout);
 		write<BasicStorage>(tree.root().value<ItemTree<>::CompoundArray>()
 			[0].find(ItemTree<>::KeyType("foo"))->second
@@ -128,7 +123,7 @@ int main()
 		}
 	catch(const Temple::Error& error)
 		{
-		fprintf(stderr,"%" PRIuMAX ":%" PRIuMAX ": %s\n",m.line(),m.col(),error.message());
+		fprintf(stderr,"%s\n",error.message());
 		}
 	return 0;
 	}
