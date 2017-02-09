@@ -6,8 +6,6 @@
 #include <cinttypes>
 #include <algorithm>
 
-using namespace Temple;
-
 class Monitor
 	{
 	public:
@@ -15,7 +13,7 @@ class Monitor
 			{
 			auto line=Temple::convert(m_line);
 			auto col=Temple::convert(m_col);
-			Error e(line.data(),':',col.data(),": ",error.message());
+			Temple::Error e(line.data(),':',col.data(),": ",error.message());
 			throw e;
 			}
 
@@ -29,24 +27,6 @@ class Monitor
 		uintmax_t m_line;
 		uintmax_t m_col;
 	};
-
-std::string& concat(char a,std::string& b)
-	{
-	b+=a;
-	return b;
-	}
-
-std::string& concat(std::string& a,const char* b)
-	{
-	a+=b;
-	return a;
-	}
-
-std::string& concat(std::string& a,const std::string& b)
-	{
-	a+=b;
-	return a;
-	}
 
 struct Reader
 	{
@@ -72,6 +52,7 @@ int main()
 	setlocale(LC_ALL,"");
 	try
 		{
+		using namespace Temple;
 		ItemTree<> tree(Reader("test.temple"),Monitor{});
 		tree.store(stdout);
 
