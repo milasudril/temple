@@ -24,11 +24,11 @@ The following table shows a comparison between TeMpLe and other data formats.
 | Sequencial data | Yes | Keys: no, Arrays: yes | Keys: no, Arrays: yes | Keys: no, Arrays: yes |
 | Heterogeneous arrays | No | Yes | No | No |
 | Homogeneous arrays | No | No | Yes | Yes |
-| Type support | Attributes: String, Element: No support without schema | Number and string | Integers, floats, and string | Integers, floats, and strings |
+| Leaf type support | Attributes: String, Element: No support without schema | Number and string | Integers, floats, and string | Integers, floats, and strings |
 | Serialization overhead | Compounds: element name + attribute names | Arrays: one byte, Compounds: property names | Arrays: one byte, Compounds: property names + type annotations | ? |
 | Compression support | No | No | No | Yes|
 
-Neither TeMpLe or HDF5 can store hetrogenous arrays, however TeMpLe can emulate arrays of compounds through arrays of compounds.
+Neither TeMpLe or HDF5 can store hetrogenous arrays, however TeMpLe can emulate hetrogenous arrays through arrays of compounds.
 
 The TeMpLe syntax
 -----------------
