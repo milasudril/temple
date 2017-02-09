@@ -185,7 +185,7 @@ namespace Temple
 //	Number to string conversion
 
 	template<class Number>
-	auto convert(Number i)
+	auto convert(Number i) noexcept
 		{
 		std::array<char,digits<Number>() + 2> buffer; //Sign + nul character
 		sprintf(buffer.data(),"%" PRIdMAX ,static_cast<intmax_t>(i));
@@ -193,7 +193,7 @@ namespace Temple
 		}
 
 	template<>
-	auto convert<float>(float x)
+	auto convert<float>(float x) noexcept
 		{
 		std::array<char,16> buffer;
 		sprintf(buffer.data(),"%.9g",x);
@@ -201,7 +201,7 @@ namespace Temple
 		}
 
 	template<>
-	auto convert<double>(double x)
+	auto convert<double>(double x) noexcept
 		{
 		std::array<char,24> buffer;
 		sprintf(buffer.data(),"%.17g",x);
