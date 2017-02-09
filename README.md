@@ -59,12 +59,10 @@ This library is template-heavy. It is likely that one specialisation works well 
 
 ### Customisation
 
-***This needs to be rewritten***
-
  * Some functions requires an exception handler. An exception handler must either throw, or terminate current thread when the raise method is called.
  * The store method accepts everything that behaves like a `FILE*` opened for writing. Full compatibility is not needed. The only requiremets are presence of the functions `putc` and `fputs`.
  * When reading data, there has to be a `read` function. For an example, see `test.cpp`. It returns 0 on end of file, and non-zero otherwise.
- * It is possible to customise the internal storage used by `ItemTree`. The default storage model is found in `itemtree.hpp`. There are two typedefs for strings. The `BufferType` is as temporary storage for the parser. Since it is expected that tokens are shorter than keys, short string optimisation may work better for `BufferType` than the regular `StringType`.
+ * It is possible to customise the internal storage used by `ItemTree`. The default storage model is found in `itemtree.hpp`. It is possible to use a different string type for the internal parser buffer than for data storage. Since it is expected that tokens are shorter than other strings, short string optimisation may work better for `BufferType` than the regular `StringType`.
 
 [1]: https://tools.ietf.org/html/rfc7159
 [2]: http://www.digip.org/jansson/
