@@ -56,6 +56,11 @@ int main()
 		ItemTree<> tree(Reader("test.temple"),Monitor{});
 		tree.store(stdout);
 
+		auto& val=find_typed<double>([](auto err){throw err;}
+			,tree.root(),0,"\"quotation marks\" in \"key\"");
+		printf("%d\n",val);
+
+
 		auto& x=tree.root().value<ItemTree<>::CompoundArray>()[0]
 			.find_typed<ItemTree<>::Compound>("foo",[](auto err){throw err;})
 			.find_typed<ItemTree<>::Compound>("more objects",[](auto err){throw err;})

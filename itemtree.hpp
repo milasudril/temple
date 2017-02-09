@@ -60,7 +60,9 @@ namespace Temple
 		{
 		auto& x=find(eh,root,path...);
 		if(!x.template has<Type>())
-			{}
+			{
+			raise(Error("Requested item is not a ",type(IdGet<Type,StorageModel>::id),"."),eh);
+			}
 		return x.template value<Type>();
 		}
 
@@ -70,7 +72,9 @@ namespace Temple
 		{
 		auto& x=find(eh,root,path...);
 		if(!x.template has<Type>())
-			{}
+			{
+			raise(Error("Requested item is not a ",type(IdGet<Type,StorageModel>::id),"."),eh);
+			}
 		return x.template value<Type>();
 		}
 
