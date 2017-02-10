@@ -196,6 +196,10 @@ namespace Temple
 			}
 		return *node;
 		}
+
+	template<class ExceptionHandler,class StorageModel>
+	const auto& find(ExceptionHandler&& eh,const ItemBase<StorageModel>& root,const char* const* argv)
+		{return find(eh,const_cast<ItemBase<StorageModel>&>(root),argv);}
 	}
 
 #endif
