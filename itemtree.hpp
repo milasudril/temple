@@ -179,9 +179,9 @@ namespace Temple
 					auto index=Temple::convert<size_t>(StringTemp{*argv},eh);
 					auto& vals=node->template value<CompoundArray>();
 					if(index>=vals.size())
-						{throw Temple::Error("Array index «",*argv,"» out of bounds");}
+						{raise(Error("Array index «",*argv,"» out of bounds."),eh);}
 					if(*(argv+1)==nullptr)
-						{throw Temple::Error("An array index must be followed by a key");}
+						{raise(Error("An array index must be followed by a key."),eh);}
 					++argv;
 					node=&vals[index].find(*argv,eh);
 					}
@@ -193,7 +193,7 @@ namespace Temple
 					}
 					break;
 				default:
-					throw Temple::Error("«",*argv,"» is not a compound");
+					raise(Error("«",*argv,"» is not a compound."),eh);
 				}
 			++argv;
 			}
