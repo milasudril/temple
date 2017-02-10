@@ -50,7 +50,7 @@ In BNF-like syntax
 	<compound> ::= { "{" <member> "}" }
 	<compound_array> ::= "[" {<compound_element>} "]"
 	<compound_element> ::= <compound> | ( <compound> "," <compound_element> )
-	<type_id> ::= ("i8"|"i16"|"i32"|"i64"|"f32"|"f64"|"s"|"comp")
+	<type_id> ::= ("i8"|"i16"|"i32"|"i64"|"u8"|"u16"|"u32"|"u64"|"f32"|"f64"|"s"|"comp")
 
 
 Library usage
