@@ -4,7 +4,7 @@
         "paths_reject":[
             "..",
             ".",
-            "__targets"
+            "__targets_rel"
         ],
         "recursive":0
     },
@@ -16,15 +16,16 @@
             "config":{
                 "appcompile":{
                     "args":[
-                        "-g",
                         "-fpic",
                         "{cxxversion}",
                         "-Wall",
+						"-O3",
                         "{cflags_extra}",
                         "{iquote}",
                         "{includedir}",
                         "-DMAIKE_TARGET_DIRECTORY={target_directory}",
                         "-DMAIKE_CURRENT_DIRECTORY={current_directory}",
+						"-s",
                         "-o",
                         "{target}",
                         "{source}",
@@ -39,16 +40,17 @@
                 "cxxversion_min":201402,
                 "dllcompile":{
                     "args":[
-                        "-g",
                         "-fpic",
                         "{cxxversion}",
                         "-Wall",
+						"-O3",
                         "{cflags_extra}",
                         "{iquote}",
                         "{includedir}",
                         "-DMAIKE_TARGET_DIRECTORY={target_directory}",
                         "-DMAIKE_CURRENT_DIRECTORY={current_directory}",
                         "-shared",
+						"-s",
                         "-o",
                         "{target}",
                         "{source}",
@@ -79,10 +81,10 @@
                 "objcompile":{
                     "args":[
                         "-c",
-                        "-g",
                         "-fpic",
                         "{cxxversion}",
                         "-Wall",
+						"-O3",
                         "{cflags_extra}",
                         "{iquote}",
                         "{includedir}",
@@ -192,6 +194,6 @@
         }
     ],
     "targetinfo":{
-        "target_directory":"__targets"
+        "target_directory":"__targets_rel"
     }
 }
