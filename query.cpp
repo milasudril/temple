@@ -3,8 +3,7 @@
 #include "itemtree.hpp"
 #include <cstdio>
 #include <clocale>
-#include <cinttypes>
-#include <algorithm>
+
 
 class Monitor
 	{
@@ -44,6 +43,7 @@ bool read(Reader& reader,char& ch)
 
 int main(int argc,char** argv)
 	{
+	setlocale(LC_ALL,"");
 	try
 		{
 		if(argc<2)

@@ -3,8 +3,6 @@
 #include "itemtree.hpp"
 #include <cstdio>
 #include <clocale>
-#include <cinttypes>
-#include <algorithm>
 
 class Monitor
 	{
@@ -51,6 +49,7 @@ struct StringTemp
 
 int main(int argc,char** argv)
 	{
+	setlocale(LC_ALL,"");
 	try
 		{
 		Temple::ItemTree<> tree(Reader{stdin},Monitor{});

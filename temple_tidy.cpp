@@ -3,8 +3,6 @@
 #include "itemtree.hpp"
 #include <cstdio>
 #include <clocale>
-#include <cinttypes>
-#include <algorithm>
 
 class Monitor
 	{
