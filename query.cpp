@@ -53,7 +53,7 @@ int main(int argc,char** argv)
 		if(tree.empty())
 			{throw Temple::Error("Item tree is empty.");}
 
-		auto eh=[](const Temple::Error& err)
+		auto eh=[](const Temple::Error& err) [[noreturn]]
 			{throw err;};
 
 		auto& item=Temple::find(eh,tree.root(),argv + 1);
