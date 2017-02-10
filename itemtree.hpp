@@ -42,6 +42,9 @@ namespace Temple
 				m_root(temple_load<StorageModel,BufferType>(src,eh))
 				{}
 
+			bool empty() const noexcept
+				{return m_root.get()==nullptr;}
+
 			template<class Sink>
 			void store(Sink&& sink)
 				{temple_store(*m_root.get(),sink);}

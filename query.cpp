@@ -47,9 +47,12 @@ int main(int argc,char** argv)
 	try
 		{
 		if(argc<2)
-			{throw Temple::Error("Path expression missing");}
+			{throw Temple::Error("Path expression missing.");}
 
 		Temple::ItemTree<> tree(Reader{stdin},Monitor{});
+		if(tree.empty())
+			{throw Temple::Error("Item tree is empty.");}
+
 		auto eh=[](const Temple::Error& err)
 			{throw err;};
 

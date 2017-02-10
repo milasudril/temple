@@ -49,6 +49,8 @@ int main()
 		{
 		using namespace Temple;
 		ItemTree<> tree(Reader{stdin},Monitor{});
+		if(tree.empty())
+			{throw Temple::Error("Item tree is empty.");}
 		tree.store(stdout);
 		}
 	catch(const Temple::Error& error)
