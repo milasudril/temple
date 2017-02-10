@@ -308,7 +308,7 @@ namespace Temple
 		}
 
 	template<>
-	auto convert<float>(float x) noexcept
+	inline auto convert<float>(float x) noexcept
 		{
 		std::array<char,16> buffer;
 		sprintf(buffer.data(),"%.9g",x);
@@ -316,7 +316,7 @@ namespace Temple
 		}
 
 	template<>
-	auto convert<double>(double x) noexcept
+	inline auto convert<double>(double x) noexcept
 		{
 		std::array<char,24> buffer;
 		sprintf(buffer.data(),"%.17g",x);
