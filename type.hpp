@@ -17,6 +17,10 @@ namespace Temple
 		,I16,I16_ARRAY
 		,I32,I32_ARRAY
 		,I64,I64_ARRAY
+		,U8,U8_ARRAY
+		,U16,U16_ARRAY
+		,U32,U32_ARRAY
+		,U64,U64_ARRAY
 		,FLOAT,FLOAT_ARRAY
 		,DOUBLE,DOUBLE_ARRAY
 		,STRING,STRING_ARRAY
@@ -119,6 +123,70 @@ namespace Temple
 		{
 		static constexpr auto id=Type::I64;
 		typedef int64_t type;
+		};
+
+
+
+	template<class StorageModel>
+	struct TypeGet<Type::U8,StorageModel>
+		{
+		static constexpr auto id=Type::U8;
+		typedef uint8_t type;
+		};
+
+	template<class StorageModel>
+	struct IdGet<uint8_t,StorageModel>
+		{
+		static constexpr auto id=Type::U8;
+		typedef uint8_t type;
+		};
+
+
+
+	template<class StorageModel>
+	struct TypeGet<Type::U16,StorageModel>
+		{
+		static constexpr auto id=Type::U16;
+		typedef uint16_t type;
+		};
+
+	template<class StorageModel>
+	struct IdGet<uint16_t,StorageModel>
+		{
+		static constexpr auto id=Type::U16;
+		typedef uint16_t type;
+		};
+
+
+
+	template<class StorageModel>
+	struct TypeGet<Type::U32,StorageModel>
+		{
+		static constexpr auto id=Type::U32;
+		typedef uint32_t type;
+		};
+
+	template<class StorageModel>
+	struct IdGet<uint32_t,StorageModel>
+		{
+		static constexpr auto id=Type::U32;
+		typedef uint32_t type;
+		};
+
+	
+
+	template<class StorageModel>
+	struct TypeGet<Type::U64,StorageModel>
+		{
+		static constexpr auto id=Type::U64;
+		typedef uint64_t type;
+		};
+
+	template<class StorageModel>
+	struct IdGet<uint64_t,StorageModel>
+		{
+		static constexpr auto id=Type::U64;
+		typedef uint64_t type;
 		};
 
 
@@ -229,6 +297,14 @@ namespace Temple
 			{return Type::I32;}
 		if(str=="i64")
 			{return Type::I64;}
+		if(str=="u8")
+			{return Type::U8;}
+		if(str=="u16")
+			{return Type::U16;}
+		if(str=="u32")
+			{return Type::U32;}
+		if(str=="u64")
+			{return Type::U64;}
 		if(str=="f32")
 			{return Type::FLOAT;}
 		if(str=="f64")
@@ -258,6 +334,22 @@ namespace Temple
 				return "i64";
 			case Type::I64_ARRAY:
 				return "i64[]";
+			case Type::U8:
+				return "u8";
+			case Type::U8_ARRAY:
+				return "u8[]";
+			case Type::U16:
+				return "u16";
+			case Type::U16_ARRAY:
+				return "u16[]";
+			case Type::U32:
+				return "u32";
+			case Type::U32_ARRAY:
+				return "u32[]";
+			case Type::U64:
+				return "u64";
+			case Type::U64_ARRAY:
+				return "u64[]";
 			case Type::FLOAT:
 				return "f32";
 			case Type::FLOAT_ARRAY:

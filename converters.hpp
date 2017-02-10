@@ -86,6 +86,42 @@ namespace Temple
 		}
 
 	template<class StringType,class ExceptionHandler>
+	unsigned long strtoul(const StringType& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		
+		if(*str.c_str()=='-')
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+		errno=0;
+		auto x=::strtoul(str.c_str(),&endptr,0);
+		if(errno==ERANGE)
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
+
+		return x;
+		}
+
+	template<class StringType,class ExceptionHandler>
+	unsigned long long strtoull(const StringType& str,ExceptionHandler& eh)
+		{
+		char* endptr=nullptr;
+		if(*str.c_str()=='-')
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+
+		errno=0;
+		auto x=::strtoull(str.c_str(),&endptr,0);
+		if(errno==ERANGE)
+			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+
+		if(*endptr!='\0' || endptr==str.c_str())
+			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
+
+		return x;
+		}
+
+	template<class StringType,class ExceptionHandler>
 	float strtof(const StringType& str,ExceptionHandler& eh)
 		{
 		char* endptr=nullptr;
@@ -173,18 +209,56 @@ namespace Temple
 			{return strtoll(value,eh);}
 		};
 
+
+
 	template<>
-	struct Converter<size_t>
+	struct Converter<uint8_t>
 		{
 		template<class StringType,class ExceptionHandler>
-		static size_t convert(const StringType& value,ExceptionHandler& eh)
+		static uint8_t convert(const StringType& value,ExceptionHandler& eh)
 			{
-			auto x=Converter<Integer<sizeof(size_t)>::type>::convert(value,eh);
-			if(x<0)
-				{raise(Temple::Error("A size cannot be negative"),eh);}
+			auto x=strtol(value,eh);
+			if(x>0xff)
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
 			return x;
 			}
 		};
+
+	template<>
+	struct Converter<uint16_t>
+		{
+		template<class StringType,class ExceptionHandler>
+		static uint16_t convert(const StringType& value,ExceptionHandler& eh)
+			{
+			auto x=strtoul(value,eh);
+			if(x>0xffff)
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
+			return x;
+			}
+		};
+
+	template<>
+	struct Converter<uint32_t>
+		{
+		template<class StringType,class ExceptionHandler>
+		static uint32_t convert(const StringType& value,ExceptionHandler& eh)
+			{
+			auto x=strtoull(value,eh);
+			if(x>0xffffffff)
+				{raise(Temple::Error("Value ",value.c_str()," out of range."),eh);}
+			return x;
+			}
+		};
+
+	template<>
+	struct Converter<uint64_t>
+		{
+		template<class StringType,class ExceptionHandler>
+		static uint64_t convert(const StringType& value,ExceptionHandler& eh)
+			{return strtoull(value,eh);}
+		};
+
+
 
 	template<>
 	struct Converter<float>

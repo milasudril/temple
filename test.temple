@@ -32,7 +32,7 @@
 		{
 		 "a string",s:"Hello, World"
 		,"another valid string",s:"This is legal too"
-		,"bar",i32:[1, 2, 3, 4]
+		,"bar",i32:[-1, -2, 3, 4]
 		,"empty array",i32:[]
 		,"more objects",comp:
 			{
@@ -40,6 +40,7 @@
 			,"value",f64:3.1400000000000001
 			,"value as float",f32:3.1400001
 			}
+		,"unsigned values",u32:[1, 2, 3, 4]
 		,"xxx",s:"more stuff"
 		,"yyy",s:"more stuff"
 		}

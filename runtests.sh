@@ -21,7 +21,7 @@ bar=`__targets/temple_query 0 foo bar < test.temple`
 if [ $? -ne 0 ]; then
 	exit 1
 fi
-if [ "$bar" != "[1, 2, 3, 4]" ]; then
+if [ "$bar" != "[-1, -2, 3, 4]" ]; then
 	exit 1
 fi
 
