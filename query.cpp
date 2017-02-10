@@ -42,13 +42,6 @@ bool read(Reader& reader,char& ch)
 	return 1;
 	}
 
-struct StringTemp
-	{
-	const char* buffer;
-	const char* c_str() const noexcept
-		{return buffer;}
-	};
-
 int main(int argc,char** argv)
 	{
 	try
@@ -56,50 +49,23 @@ int main(int argc,char** argv)
 		if(argc<2)
 			{throw Temple::Error("Path expression missing");}
 
-		++argv;
 		Temple::ItemTree<> tree(Reader{stdin},Monitor{});
 		auto eh=[](const Temple::Error& err)
 			{throw err;};
-		auto* root=&tree.root();
-		while(*argv!=nullptr)
-			{
-			switch(root->type())
-				{
-				case Temple::Type::COMPOUND_ARRAY:
-					{
-					auto index=Temple::convert<size_t>(StringTemp{*argv},eh);
-					auto& vals=root->value<decltype(tree)::CompoundArray>();
-					if(index>=vals.size())
-						{throw Temple::Error("Array index «",*argv,"» out of bounds");}
-					if(*(argv+1)==nullptr)
-						{throw Temple::Error("An array index must be followed by a key");}
-					++argv;
-					root=&vals[index].find(*argv,eh);
-					}
-					break;
-				case Temple::Type::COMPOUND:
-					{
-					auto& vals=root->value<decltype(tree)::Compound>();
-					root=&vals.find(*argv,eh);
-					}
-					break;
-				default:
-					throw Temple::Error("«",*argv,"» is not a compound");
-				}
 
-			++argv;
-			}
-		if(arrayUnset(root->type())==Temple::Type::COMPOUND)
+		auto& item=Temple::find(eh,tree.root(),argv + 1);
+
+		if(arrayUnset(item.type())==Temple::Type::COMPOUND)
 			{
-			Temple::temple_store(*root,stdout);
+			Temple::temple_store(item,stdout);
 			}
 		else
 			{
 			Temple::for_type<decltype(tree)::StorageModel,Temple::Type::I8,1,Temple::Type::STRING_ARRAY>
-			(root->type(),[root,&tree](auto tag)
+			(item.type(),[&item,&tree](auto tag)
 				{
 				using type=typename decltype(tag)::type;
-				Temple::write<decltype(tree)::StorageModel>(root->value<type>(),stdout);
+				Temple::write<decltype(tree)::StorageModel>(item.value<type>(),stdout);
 				});
 			}
 		}

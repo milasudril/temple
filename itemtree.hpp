@@ -152,6 +152,50 @@ namespace Temple
 	const auto& find(ExceptionHandler&& eh,const ItemBase<StorageModel>& root,size_t index
 		,const Path&...path)
 		{return find(eh,const_cast<ItemBase<StorageModel>&>(root),index,path...);}
+
+	template<class ExceptionHandler,class StorageModel>
+	auto& find(ExceptionHandler&& eh,ItemBase<StorageModel>& root,const char* const* argv)
+		{
+		using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+		using CompoundArray=typename StorageModel::template ArrayType<Compound>;
+
+		struct StringTemp
+			{
+			const char* buffer;
+			const char* c_str() const noexcept
+				{return buffer;}
+			};
+
+		auto* node=&root;
+		while(*argv!=nullptr)
+			{
+			switch(node->type())
+				{
+				case Type::COMPOUND_ARRAY:
+					{
+					auto index=Temple::convert<size_t>(StringTemp{*argv},eh);
+					auto& vals=node->template value<CompoundArray>();
+					if(index>=vals.size())
+						{throw Temple::Error("Array index «",*argv,"» out of bounds");}
+					if(*(argv+1)==nullptr)
+						{throw Temple::Error("An array index must be followed by a key");}
+					++argv;
+					node=&vals[index].find(*argv,eh);
+					}
+					break;
+				case Type::COMPOUND:
+					{
+					auto& vals=node->template value<Compound>();
+					node=&vals.find(*argv,eh);
+					}
+					break;
+				default:
+					throw Temple::Error("«",*argv,"» is not a compound");
+				}
+			++argv;
+			}
+		return *node;
+		}
 	}
 
 #endif

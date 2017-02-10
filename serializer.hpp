@@ -130,11 +130,11 @@ namespace Temple
 		class Acceptor
 			{
 			public:
-				using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
-				using CompoundArray=typename StorageModel::template ArrayType<MapType>;
+				using Compound=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
+				using CompoundArray=typename StorageModel::template ArrayType<Compound>;
 
 				using VisitorArray=Visitor<Acceptor,CompoundArray>;
-				using VisitorMap=Visitor<Acceptor,MapType>;
+				using VisitorMap=Visitor<Acceptor,Compound>;
 
 				explicit Acceptor(ItemBase<StorageModel>&&)=delete;
 
@@ -143,7 +143,7 @@ namespace Temple
 					if(root.array())
 						{m_stack.push(VisitorArray::create(root.template value<CompoundArray>(),']') );}
 					else
-						{m_stack.push(VisitorMap::create(root.template value<MapType>(),'}'));}
+						{m_stack.push(VisitorMap::create(root.template value<Compound>(),'}'));}
 					}
 
 				void run()
@@ -168,7 +168,7 @@ namespace Temple
 						}
 					}
 
-				void operator()(const MapType& node_current,const VisitorArray& visitor)
+				void operator()(const Compound& node_current,const VisitorArray& visitor)
 					{
 					indent(m_stack.size(),r_sink);
 					putc(visitor.atBegin()?'[':',',r_sink);
@@ -176,7 +176,7 @@ namespace Temple
 					m_stack.push(VisitorMap::create(node_current,'}'));
 					}
 
-				void operator()(const typename MapType::value_type& node_current,const VisitorMap& visitor)
+				void operator()(const typename Compound::value_type& node_current,const VisitorMap& visitor)
 					{
 					indent(m_stack.size(),r_sink);
 					if(visitor.size()==1)
@@ -196,7 +196,7 @@ namespace Temple
 					fprintf(r_sink,"\",%s:",type(arrayUnset(type_current)));
 					if(type_current==Type::COMPOUND)
 						{
-						auto node=VisitorMap::create(node_current.second->template value<MapType>(),'}');
+						auto node=VisitorMap::create(node_current.second->template value<Compound>(),'}');
 						putc('\n',r_sink);
 						if(node->atEnd())
 							{
