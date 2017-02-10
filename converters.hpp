@@ -62,7 +62,7 @@ namespace Temple
 		errno=0;
 		auto x=::strtol(str.c_str(),&endptr,0);
 		if(errno==ERANGE)
-			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+			{raise(Temple::Error("Value «",str.c_str(),"» is out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
 			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
@@ -77,7 +77,7 @@ namespace Temple
 		errno=0;
 		auto x=::strtoll(str.c_str(),&endptr,0);
 		if(errno==ERANGE)
-			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+			{raise(Temple::Error("Value «",str.c_str(),"» is out of range."),eh);}
 
 		if(*endptr!='\0' || endptr==str.c_str())
 			{raise(Temple::Error("«",str.c_str(),"» is not a valid integer."),eh);}
@@ -86,14 +86,23 @@ namespace Temple
 		}
 
 	template<class StringType,class ExceptionHandler>
+	const char* signCheck(const StringType& str,ExceptionHandler& eh)
+		{
+		auto ptr=str.c_str();
+		while(*ptr!='\0' && isspace(*ptr))
+			{++ptr;}
+		if(*ptr=='-')
+			{raise(Temple::Error("Value «",str.c_str(),"» is out of range."),eh);}
+		return ptr;
+		}
+
+	template<class StringType,class ExceptionHandler>
 	unsigned long strtoul(const StringType& str,ExceptionHandler& eh)
 		{
-		char* endptr=nullptr;
-		
-		if(*str.c_str()=='-')
-			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
+		auto ptr=signCheck(str,eh);
 		errno=0;
-		auto x=::strtoul(str.c_str(),&endptr,0);
+		char* endptr=nullptr;
+		auto x=::strtoul(ptr,&endptr,0);
 		if(errno==ERANGE)
 			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
@@ -106,12 +115,10 @@ namespace Temple
 	template<class StringType,class ExceptionHandler>
 	unsigned long long strtoull(const StringType& str,ExceptionHandler& eh)
 		{
-		char* endptr=nullptr;
-		if(*str.c_str()=='-')
-			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
-
+		auto ptr=signCheck(str,eh);
 		errno=0;
-		auto x=::strtoull(str.c_str(),&endptr,0);
+		char* endptr=nullptr;
+		auto x=::strtoull(ptr,&endptr,0);
 		if(errno==ERANGE)
 			{raise(Temple::Error("Value ",str.c_str()," out of range."),eh);}
 
