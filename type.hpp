@@ -240,24 +240,40 @@ namespace Temple
 
 	inline const char* type(Type type)
 		{
-		switch(arrayUnset(type))
+		switch(type)
 			{
 			case Type::I8:
 				return "i8";
+			case Type::I8_ARRAY:
+				return "i8[]";
 			case Type::I16:
 				return "i16";
+			case Type::I16_ARRAY:
+				return "i16[]";
 			case Type::I32:
 				return "i32";
+			case Type::I32_ARRAY:
+				return "i32[]";
 			case Type::I64:
 				return "i64";
+			case Type::I64_ARRAY:
+				return "i64[]";
 			case Type::FLOAT:
 				return "f32";
+			case Type::FLOAT_ARRAY:
+				return "f32[]";
 			case Type::DOUBLE:
 				return "f64";
+			case Type::DOUBLE_ARRAY:
+				return "f64[]";
 			case Type::STRING:
 				return "s";
+			case Type::STRING_ARRAY:
+				return "s[]";
 			case Type::COMPOUND:
 				return "comp";
+			case Type::COMPOUND_ARRAY:
+				return "comp[]";
 			default:
 				assert(1!=1 && "Internal error");
 				return nullptr;

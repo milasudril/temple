@@ -31,6 +31,27 @@ namespace Temple
 		locale_t m_loc_old;
 		};
 
+	template<size_t size>
+	struct Integer
+		{};
+
+	template<>
+	struct Integer<1>
+		{using type=int8_t;};
+
+	template<>
+	struct Integer<2>
+		{using type=int16_t;};
+
+	template<>
+	struct Integer<4>
+		{using type=int32_t;};
+
+	template<>
+	struct Integer<8>
+		{using type=int64_t;};
+		
+
 
 //Helpers for numeric types
 
@@ -150,6 +171,19 @@ namespace Temple
 		template<class StringType,class ExceptionHandler>
 		static int64_t convert(const StringType& value,ExceptionHandler& eh)
 			{return strtoll(value,eh);}
+		};
+
+	template<>
+	struct Converter<size_t>
+		{
+		template<class StringType,class ExceptionHandler>
+		static size_t convert(const StringType& value,ExceptionHandler& eh)
+			{
+			auto x=Converter<Integer<sizeof(size_t)>::type>::convert(value,eh);
+			if(x<0)
+				{raise(Temple::Error("A size cannot be negative"),eh);}
+			return x;
+			}
 		};
 
 	template<>

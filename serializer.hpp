@@ -193,7 +193,7 @@ namespace Temple
 					putc('"',r_sink);
 					write(node_current.first.c_str(),r_sink);
 					auto type_current=node_current.second->type();
-					fprintf(r_sink,"\",%s:",type(type_current));
+					fprintf(r_sink,"\",%s:",type(arrayUnset(type_current)));
 					if(type_current==Type::COMPOUND)
 						{
 						auto node=VisitorMap::create(node_current.second->template value<MapType>(),'}');

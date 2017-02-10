@@ -26,10 +26,11 @@ namespace Temple
 		using MapType=MapDefault<BasicStorage,ItemType>;
 		};
 
-	template<class StorageModel=BasicStorage>
+	template<class StorageModel_=BasicStorage>
 	class ItemTree
 		{
 		public:
+			using StorageModel=StorageModel_;
 			using KeyType=typename StorageModel::KeyType;
 			template<class T>
 			using ArrayType=typename StorageModel::template ArrayType<T>;
@@ -61,7 +62,8 @@ namespace Temple
 		auto& x=find(eh,root,path...);
 		if(!x.template has<Type>())
 			{
-			raise(Error("Requested item is not a ",type(IdGet<Type,StorageModel>::id),"."),eh);
+			raise(Error("Requested item is not of type "
+				,type(IdGet<Type,StorageModel>::id),'.'),eh);
 			}
 		return x.template value<Type>();
 		}
@@ -73,7 +75,8 @@ namespace Temple
 		auto& x=find(eh,root,path...);
 		if(!x.template has<Type>())
 			{
-			raise(Error("Requested item is not a ",type(IdGet<Type,StorageModel>::id),"."),eh);
+			raise(Error("Requested item is not of type "
+				,type(IdGet<Type,StorageModel>::id),'.'),eh);
 			}
 		return x.template value<Type>();
 		}

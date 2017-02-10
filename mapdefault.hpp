@@ -47,7 +47,7 @@ namespace Temple
 				{
 				auto i=find(key);
 				if(i==end())
-					{raise(Error("Key «",key.c_str(),"» not found"),eh);}
+					{raise(Error("Key «",key.c_str(),"» not found."),eh);}
 				return *(i->second.get());
 				}
 
