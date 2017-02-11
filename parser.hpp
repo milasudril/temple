@@ -14,6 +14,34 @@ namespace Temple
 		{
 		template<class StorageModel,class BufferType,class ExceptionHandler>
 		using AppendFunc=void (*)(ItemBase<StorageModel>& item,const BufferType& buffer,ExceptionHandler& eh);
+
+		template<class Source,class ExceptionHandler>
+		class ProgressMonitor
+			{
+			public:
+				explicit ProgressMonitor(Source& source,ExceptionHandler& eh) noexcept:
+					r_source(source),r_eh(eh)
+					{}
+
+				[[noreturn]] void operator()(const Error& error)
+					{
+					auto line=convert(m_line);
+					auto col=convert(m_col);
+					raise(Error(name(r_source),':',line.data(),':',col.data(),": ",error.message()),r_eh);
+					}
+
+				void positionUpdate(uintmax_t line,uintmax_t col) noexcept
+					{
+					m_line=line;
+					m_col=col;
+					}
+
+			private:
+				uintmax_t m_line;
+				uintmax_t m_col;
+				Source& r_source;
+				ExceptionHandler& r_eh;
+			};
 		}
 
 	template<class StackType,class ExceptionHandler>
@@ -46,11 +74,12 @@ namespace Temple
 		return ret;
 		}
 
-	template<class StorageModel,class BufferType,class Source,class ProgressMonitor>
-	std::unique_ptr<ItemBase<StorageModel>> temple_load(Source& src,ProgressMonitor& monitor)
+	template<class StorageModel,class BufferType,class Source,class ExceptionHandler>
+	std::unique_ptr<ItemBase<StorageModel>> temple_load(Source& src,ExceptionHandler& eh)
 		{
 		using MapType=typename StorageModel::template MapType< std::unique_ptr< ItemBase<StorageModel> > > ;
 		using CompoundArray=typename StorageModel::template ArrayType<MapType>;
+		ProgressMonitor<Source,ExceptionHandler> monitor(src,eh);
 
 		enum class State:int
 			{
@@ -70,7 +99,7 @@ namespace Temple
 		BufferType key_current;
 		
 		std::unique_ptr<ItemBase<StorageModel>> item_current;
-		AppendFunc<StorageModel,BufferType,ProgressMonitor> append_func;
+		AppendFunc<StorageModel,BufferType,decltype(monitor)> append_func;
 
 		TreeNode<CompoundArray,MapType> node_current;
 		std::unique_ptr<ItemBase<StorageModel>> root;
@@ -205,7 +234,7 @@ namespace Temple
 						case '[':
 							type_current=arraySet(type_current);
 							item_current=itemCreate<StorageModel>(type_current);
-							append_func=appendFunction<StorageModel,BufferType,ProgressMonitor>(type_current);
+							append_func=appendFunction<StorageModel,BufferType,decltype(monitor)>(type_current);
 							state_current=State::VALUE_ARRAY;
 							break;
 						case '"':

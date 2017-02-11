@@ -4,27 +4,6 @@
 #include <cstdio>
 #include <clocale>
 
-class Monitor
-	{
-	public:
-		[[noreturn]] void operator()(const Temple::Error& error)
-			{
-			auto line=Temple::convert(m_line);
-			auto col=Temple::convert(m_col);
-			Temple::Error e(line.data(),':',col.data(),": ",error.message());
-			throw e;
-			}
-
-		void positionUpdate(uintmax_t line,uintmax_t col) noexcept
-			{
-			m_line=line;
-			m_col=col;
-			}
-
-	private:
-		uintmax_t m_line;
-		uintmax_t m_col;
-	};
 
 struct Reader
 	{
@@ -40,13 +19,17 @@ bool read(Reader& reader,char& ch)
 	return 1;
 	}
 
+const char* name(Reader& reader) noexcept
+	{return "stdin";}
+
 int main()
 	{
 	setlocale(LC_ALL,"");
 	try
 		{
 		using namespace Temple;
-		ItemTree<> tree(Reader{stdin},Monitor{});
+		ItemTree<> tree(Reader{stdin},[](const Temple::Error& err)[[noreturn]]
+			{throw err;});
 		if(tree.empty())
 			{throw Temple::Error("Item tree is empty.");}
 		tree.store(stdout);

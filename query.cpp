@@ -4,29 +4,6 @@
 #include <cstdio>
 #include <clocale>
 
-
-class Monitor
-	{
-	public:
-		[[noreturn]] void operator()(const Temple::Error& error)
-			{
-			auto line=Temple::convert(m_line);
-			auto col=Temple::convert(m_col);
-			Temple::Error e(line.data(),':',col.data(),": ",error.message());
-			throw e;
-			}
-
-		void positionUpdate(uintmax_t line,uintmax_t col) noexcept
-			{
-			m_line=line;
-			m_col=col;
-			}
-
-	private:
-		uintmax_t m_line;
-		uintmax_t m_col;
-	};
-
 struct Reader
 	{
 	FILE* handle;
@@ -41,6 +18,9 @@ bool read(Reader& reader,char& ch)
 	return 1;
 	}
 
+const char* name(Reader& reader) noexcept
+	{return "stdin";}
+
 int main(int argc,char** argv)
 	{
 	setlocale(LC_ALL,"");
@@ -49,12 +29,13 @@ int main(int argc,char** argv)
 		if(argc<2)
 			{throw Temple::Error("Path expression missing.");}
 
-		Temple::ItemTree<> tree(Reader{stdin},Monitor{});
-		if(tree.empty())
-			{throw Temple::Error("Item tree is empty.");}
 
 		auto eh=[](const Temple::Error& err) [[noreturn]]
 			{throw err;};
+
+		Temple::ItemTree<> tree(Reader{stdin},eh);
+		if(tree.empty())
+			{throw Temple::Error("Item tree is empty.");}
 
 		auto& item=Temple::find(eh,tree.root(),argv + 1);
 
